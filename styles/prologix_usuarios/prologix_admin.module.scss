@@ -1,0 +1,35 @@
+.modal {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin: auto;
+    background-color: black;
+    border-radius: 20px;
+    padding: 1%;
+    min-width: 400px;
+
+    h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: red;
+        margin: 2%;
+    }
+
+    button {
+        background-color: gray;
+        color: white;
+        font-size: 1.2rem;
+        border-radius: 10px;
+        padding: 2%;
+        width: 90%;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    button:active {
+        transform: scale(0.9);
+    }
+
+}
+

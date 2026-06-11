@@ -1,0 +1,94 @@
+.fondo_login {
+    background-image: url('/images/login/fondo_login.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    height: 100dvh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login_form {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    width: 25%;
+    background-color: white;
+    padding: 2%;
+    border-radius: 10px;
+}
+
+.form_image {
+    display: flex;
+    justify-content: center;
+}
+
+.form_title {
+    display: flex;
+    justify-content: center;
+    margin: 3% 0%;
+
+    h1 {
+        font-weight: 600;
+        font-size: 1.2rem;
+    }
+}
+
+.form_inputs {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin: 0% 0% 10% 0%;
+
+    label {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 5%;
+    }
+}
+
+.form_input {
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+    width: 100%;
+    border: 1px solid rgb(188, 188, 188);
+    border-radius: 10px;
+    padding: 0.5% 0.5% 0.5% 2%;
+    font-size: 1.2rem;
+    width: 100%;
+
+    input {
+        margin-left: 2%;
+        width: 100%;
+        padding: 1% 1% 1% 2%;
+    }
+
+    input:focus {
+        outline: 0;
+    }
+}
+
+.form_button {
+    display: flex;
+    justify-content: center;
+
+    button {
+        background-color: blue;
+        width: 100%;
+        border-radius: 10px;
+        color: white;
+        padding: 2%;
+        font-size: 1.2rem;
+    }
+
+    button:hover {
+        cursor: pointer;
+    }
+
+    button:active {
+        transform: scale(0.9);
+    }
+
+}

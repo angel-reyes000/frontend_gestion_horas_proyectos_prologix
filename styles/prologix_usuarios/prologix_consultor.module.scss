@@ -1,0 +1,232 @@
+.vista_consultor {
+    display: grid;
+    grid-template-rows: auto auto auto auto;
+    background-color: rgb(235, 235, 235);
+    width: 100%;
+    height: auto;
+    padding: 2% 2% 6% 2%;
+    gap: 1%;
+}
+
+.vista_consultor_encabezado {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    justify-content: space-between;
+}
+
+.encabezado_imagen {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5% 1% 0.5% 1%;
+    background-color: white;
+    border-radius: 10px;
+}
+
+.encabezado_select {
+    display: flex;
+    align-items: center;
+    height: 60%;
+    gap: 3%;
+
+    select {
+        border: 1px solid rgb(206, 206, 206);
+        border-radius: 5px;
+        height: 100%;
+    }
+
+    select:focus {
+        outline: 1px solid rgb(143, 227, 255);
+    }
+
+}
+
+.encabezado_titulo {
+    width: fit-content;
+    h1 {
+        font-size: 2rem;
+        margin: 0;
+        font-weight: 700;
+    }
+
+    p {
+        margin: 0;
+    }
+}
+
+.vista_consultor_recuadros {
+    display: flex;
+    height: fit-content;
+    justify-content: space-between;
+}
+
+.recuadros {
+    display: flex;
+    gap: 2%;
+    align-items: center;
+    padding: 1% 2% 1% 2%;
+    width: 33%;
+    background-color: white;
+    border: 1px solid rgb(206, 206, 206);
+    border-radius: 10px;
+}
+
+.recuadros_icono{
+    display: flex;
+    background-color: green;
+    padding: 2%;
+    border-radius: 10px;
+    box-sizing: border-box;
+    width: fit-content;
+    height: fit-content;
+}
+
+.recuadros_texto {
+    display: grid;
+    grid-template-rows: auto auto;
+
+    p {
+        margin: 0;
+        color: rgba(0, 0, 0, 0.500);
+        font-size: 0.9rem;
+    }
+
+    h2 {
+        display: flex;
+        margin: 0;
+        font-size: 1.7rem;
+        font-weight: 600;
+    }
+}
+
+.vista_consultor_graficas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1%;
+}
+
+.graficas_lineas {
+    background-color: white;
+    border-radius: 10px;
+    padding: 1% 2% 1% 2%;
+    border: 1px solid rgb(206, 206, 206);
+}
+
+.graficas_pastel {
+    background-color: white;
+    border-radius: 10px;
+    padding: 3% 2% 1% 2%;
+    border: 1px solid rgb(206, 206, 206);
+}
+
+.vista_consultor_tabla {
+    display: grid;
+    grid-template-rows: auto auto;
+    border-radius: 10px;
+    background-color: white;
+    border: 1px solid rgb(206, 206, 206);
+    gap: 10%;
+    padding-bottom: 5%;
+}
+
+.vista_consultor_tabla_encabezado {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    padding: 2% 2% 0% 2%;
+}
+
+.vista_consultor_titulo {
+    width: 50%;
+    h1 {
+        font-size: 1.2rem;
+        font-weight: 700;
+    }
+}
+
+.vista_consultor_acciones {
+    display: flex;
+    justify-content: right;
+    align-items: center;
+    height: 100%;
+    width: 50%;
+    gap: 2%;
+}
+
+.acciones_select {
+    width: 35%;
+
+    label {
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+    }
+
+    select {
+        width: 100%;
+        border: 1px solid rgb(206, 206, 206);
+    }
+
+    select:focus {
+        outline: 0;
+    }
+}
+
+.acciones_input {
+    width: 35%;
+
+    input {
+        padding: 2% 0% 2% 2%;
+        width: 100%;
+        border: 1px solid rgb(206, 206, 206);
+        border-radius: 5px;
+    }
+
+    input:focus {
+        outline: none;
+    }
+}
+
+.acciones_boton {
+    width: 30%;
+
+    button {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 3%;
+        font-weight: 600;
+        width: 100%;
+        color: white;
+        border-radius: 10px;
+        background-color: rgb(47, 47, 255);
+        cursor: pointer;
+    }
+
+    button:active {
+        transform: scale(0.9);
+    }
+
+}
+
+.tabla {
+    width: 100%;
+
+    table {
+        width: 100%;
+        text-align: center;
+    }
+
+    thead tr th {
+        padding: 0.5%;
+        background-color: rgb(228, 228, 228);
+        color: rgb(93, 93, 93);
+    }
+
+    tr td {
+        border-bottom: 1px solid black;
+        padding: 0.5%;
+    }
+}

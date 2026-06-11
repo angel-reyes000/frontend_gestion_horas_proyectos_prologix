@@ -1,0 +1,136 @@
+.menu_fake {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    width: 5%;
+    height: 100dvh;
+    background-color: red;
+}
+
+.menu {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    justify-items: center;
+    align-content: center;
+    position: fixed;
+    width: 5%;
+    height: 100dvh;
+    background-color: rgb(0, 0, 100);
+}
+
+.menu:hover {
+    animation-name: abrir_menu;
+    animation-duration: 0.1s;
+    animation-timing-function: linear;
+    animation-delay: 0;
+    animation-fill-mode: forwards;
+
+    .menu_logo {
+        visibility: visible;
+    }
+
+    .menu_secciones {
+        margin-top: 15%;
+        padding: 0% 3% 0% 3%;
+        box-sizing: border-box;
+        ul {
+            li {
+                display: flex;
+                justify-content: left;
+                align-items: center;
+                border-radius: 10px;
+                padding: 3%;
+                gap: 5%;
+                margin-bottom: 5%;
+                p {
+                    color: white;
+                    display: flex;
+                }
+            }
+
+            li:hover{
+                cursor: pointer;
+                background-color: rgb(0, 0, 241);
+            }
+
+        }
+    }
+
+    .menu_cerrar_sesion {
+        width: 100%;
+        padding: 0% 3% 0% 3%;
+        margin-bottom: 10%;
+
+        .cerrar_sesion {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            padding: 3%;
+            box-sizing: border-box;
+
+            h2 {
+                display: flex;
+                margin-left: 5%;
+                color: white;
+            }
+
+        }
+
+        .cerrar_sesion:hover {
+            cursor: pointer;
+            border-radius: 10px;
+            background-color: rgb(0, 0, 241);
+        }        
+    }
+}
+
+@keyframes abrir_menu {
+    from {
+        width: 5%;
+    } to {
+        width: 15%;
+    }
+}
+
+.menu_logo {
+    margin-top: 10%;
+    visibility: hidden;
+}
+
+.menu_secciones {
+    margin-top: 120%;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    ul {
+        width: 100%;
+        li {
+            display: grid;
+            justify-items: right;
+            grid-template-columns: auto auto;
+            width: 100%;
+            margin-bottom: 30%;
+            p {
+                display: none;
+            }
+        }
+
+    }
+
+}
+
+.menu_cerrar_sesion {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 30%;
+
+    .cerrar_sesion {
+
+        h2 {
+            display: none;
+        }
+    }
+
+    
+}
