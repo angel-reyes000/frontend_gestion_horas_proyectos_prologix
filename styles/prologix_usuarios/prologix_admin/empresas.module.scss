@@ -1,0 +1,241 @@
+.vista_completa {
+    display: grid;
+    grid-template-rows: auto auto 1fr;
+    gap: 2%;
+    width: 100%;
+    padding: 2%;
+}
+
+.vista_volver {
+    p {
+        font-size: 0.9rem;
+        color: #2563eb;
+    }
+
+    p:hover {
+        text-decoration: underline;
+        cursor: pointer;
+    }
+}
+
+.vista_encabezado {
+    display: flex;
+    justify-content: space-between;
+
+    h1 {
+        font-size: 1.8rem;
+        font-weight: 700;
+    }
+
+    p {
+        font-size: 0.9rem;
+        color: #64748b;
+        margin: 0;
+    }
+}
+
+.encabezado_boton {
+    display: flex;
+    align-items: center;
+    justify-content: end;
+    width: 50%;
+
+    button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        font-weight: 600;
+        width: 25%;
+        height: 60%;
+        border-radius: 10px;
+        background-color: #2563eb;
+        color: white;
+        cursor: pointer;
+    }
+
+    button:active {
+        transform: scale(0.9);
+    }
+}
+
+.vista_tabla {
+    background-color: white;
+    border-radius: 20px;
+}
+
+.vista_tabla_input {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    border-radius: 10px;
+    border: 2px solid #e2e8f0;
+    width: 20%;
+    padding-left: 1%;
+    margin: 2%;
+
+    input { 
+        width: 100%;
+        border: none;
+        padding: 1% 1% 1% 2%;
+    }
+
+    input:focus {
+        outline: none;
+    }
+
+}
+
+.tabla {
+    width: 100%;
+    font-size: 0.9rem;
+
+    thead tr {
+        background-color: #fafbfc;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    tr {
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    td {
+        padding: 1% 2%;
+    }
+
+}
+
+.dialog {
+    display: flex;
+    flex-direction: column;
+    padding: 2%;
+    border-radius: 20px;
+    margin: auto;
+}
+
+.dialog_encabezado {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.dialog_titulo {
+    width: 80%;
+
+    h1 {
+        font-size: 1.5rem;
+    }
+
+    p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #64748b;
+    }
+
+}
+
+.dialog_boton {
+    text-align: end;
+    width: fit-content;
+
+    button {
+        text-align: end;
+        width: 100%;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+}
+
+.dialog_inputs {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin: 5% 0%;
+
+    label {
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 2%;
+        width: 45%;
+
+        input {
+            padding: 1% 1% 1% 2%;
+            border-radius: 5px;
+            border: 2px solid #e2e8f0;
+        }
+
+        input:focus {
+            outline: 0;
+        }
+
+        select {
+            height: 100%;
+            border-radius: 5px;
+            border: 2px solid #e2e8f0;
+        }
+
+        select:focus {
+            outline: 0;
+        }
+    }
+
+    .label_textarea {
+        width: 100%;
+
+        textarea {
+            padding: 1% 1% 1% 2%;
+            border-radius: 5px;
+            border: 2px solid #e2e8f0;
+        }
+
+        textarea:focus {
+            outline: 0;
+        }
+    }
+}
+
+.dialog_botones {
+    display: flex;
+    justify-content: space-between;    
+}
+
+.botones_guardar_cancelar {
+    display: flex;
+    gap: 5%;
+    width: 50%;
+
+    button {
+        border-radius: 10px;
+        width: 100%;
+        padding: 1%;
+        cursor: pointer;
+    }
+
+    button:active {
+        transform: scale(0.9);
+    }
+}
+
+.botones_borrar {
+    display: flex;
+    justify-content: end;
+    width: 10%;
+    border-radius: 5px;
+    background-color: red;
+    padding: 0%;
+
+    button {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        width: 100%;
+        cursor: pointer;
+    }
+
+    button:active {
+        transform: scale(0.9);
+    }
+
+}

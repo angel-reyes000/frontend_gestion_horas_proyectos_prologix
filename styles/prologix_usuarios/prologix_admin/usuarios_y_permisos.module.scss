@@ -1,0 +1,84 @@
+.usuarios_permisos {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    padding: 2%;
+    width: 100%;
+    gap: 5%;
+}
+
+.usuarios_permisos_encabezado {
+     h1 {
+        font-size: 1.60rem;
+        font-weight: 600;
+     }
+
+     p {
+        font-size: 0.9rem;
+        font-weight: 400;
+     }
+}
+
+.usuarios_permisos_recuadros {
+    display: flex;
+    flex-direction: column;
+    gap: 5%;
+}
+
+.recuadros_recuadro {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    gap: 1%;
+}
+
+.recuadro {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    padding: 2%;
+    width: 100%;
+    text-align: center;
+    border-radius: 20px;
+    background-color: white;
+    gap: 10%;
+}
+
+.recuadro_imagen {
+    display: flex;
+    width: fit-content;
+    box-sizing: border-box;
+    padding: 3%;
+    border-radius: 40px;
+    background-color: green;
+}
+
+.recuadro_texto {
+    h2 {
+        font-weight: 600;
+    }
+
+    p{
+        font-size: 0.8rem;
+        font-weight: 400;
+        color: rgb(122, 122, 122);
+    }
+}
+
+.recuadro_boton {
+    width: 100%;
+
+    button {
+        padding: 1%;
+        width: 100%;
+        border: 1px solid black;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    button:active {
+        transform: scale(0.9);
+    }
+}

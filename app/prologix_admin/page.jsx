@@ -1,6 +1,6 @@
 "use client"
 
-import styles from '../../styles/prologix_usuarios/prologix_admin.module.scss';
+import styles from '../../styles/prologix_usuarios/prologix_admin/prologix_admin.module.scss';
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from 'next/navigation';
 import { FaExclamationTriangle } from "react-icons/fa";
@@ -29,6 +29,7 @@ export default function PrologixAdmin () {
                 }
 
                 const data = await response.json()
+                console.log(data)
 
             } catch (error) {
                 console.log("Error: ", error.message)

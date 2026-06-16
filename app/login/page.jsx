@@ -63,7 +63,7 @@ export default function Login(){
         <div className={styles.fondo_login}>
             <form className={styles.login_form} onSubmit={getUsers}>
                 <div className={styles.form_image}>
-                    <Image width={300} height={300} src={Logo} />
+                    <Image width={300} height={300} src={Logo} alt='Logo de Prologix'/>
                 </div>
                 <div className={styles.form_title}>
                     <h1>Bienvenido a Prologix</h1>
@@ -80,7 +80,7 @@ export default function Login(){
                         Contraseña:
                         <div className={styles.form_input}>
                             <FaLock size={15}/>
-                            <input value={contraseña} onChange={(e) => setContraseña(e.target.value)} placeholder='Ingresa tu contraseña'></input>                            
+                            <input type='password' value={contraseña} onChange={(e) => setContraseña(e.target.value)} placeholder='Ingresa tu contraseña'></input>                            
                         </div>
                         {invalidAccess ? <p style={{color: 'red', fontSize: '0.8rem', textAlign: 'right'}}>Acceso invalido.</p> : null}
                     </label>

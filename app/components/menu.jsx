@@ -17,20 +17,19 @@ export default function Menu () {
             </div>
             <div className={styles.menu}>
                 <div className={styles.menu_logo}>
-                    <Image src={Logo} width={300}/>
+                    <Image src={Logo} width={300} alt='logo de la empresa'/>
                 </div>
                 <div className={styles.menu_secciones}>
                     <ul>
-                        <li><FaThLarge size={40} style={{color: 'white'}}/><p>Gestion de proyectos</p></li>
-                        <li><FaUsers size={40} style={{color: 'white'}}/><p>Usuarios y permisos</p></li>
+                        <li onClick={() => router.push('/prologix_admin')}><FaThLarge size={40} style={{color: 'white'}}/><p>Gestion de proyectos</p></li>
+                        <li onClick={() => router.push('/prologix_admin/usuarios_y_permisos')}><FaUsers size={40} style={{color: 'white'}}/><p>Usuarios y permisos</p></li>
                     </ul>
                 </div>
                 <div className={styles.menu_cerrar_sesion}>
                     <div className={styles.cerrar_sesion}>
                         <FaSignOutAlt size={40} style={{color: 'white'}}/>
                         <h2>Cerrar sesion</h2>
-                    </div>
-                    
+                    </div>                    
                 </div>
             </div>
         </>
