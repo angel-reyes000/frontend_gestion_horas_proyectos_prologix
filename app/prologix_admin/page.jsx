@@ -4,8 +4,8 @@ import styles from '../../styles/prologix_usuarios/prologix_vista_usuarios.modul
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import GraficaHorasSemana from '../components/consultor_grafica_horas_semana';
-import GraficaHorasProyectosSemana from '../components/consultor_grafica_horas_proyectos_semana';
+import BarChart from '../components/admin_barchart';
+import LineChart from '../components/admin_linechart';
 import { FaExclamationTriangle } from "react-icons/fa";
 import { FaClock, FaArrowTrendUp, FaBorderAll } from "react-icons/fa6";
 import Logo from '../../public/logo.png';
@@ -172,10 +172,10 @@ export default function PrologixAdmin () {
 
                 <div className={styles.vista_consultor_graficas}>
                     <div className={styles.graficas_lineas}>
-                        <GraficaHorasSemana />
+                        <BarChart />
                     </div>
                     <div className={styles.graficas_pastel}>
-                        <GraficaHorasProyectosSemana />
+                        <LineChart />
                     </div>
                 </div>
 
