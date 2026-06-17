@@ -1,12 +1,12 @@
 "use client"
 
-import styles from '../../styles/prologix_usuarios/prologix_consultor.module.scss';
+import styles from '../../styles/prologix_usuarios/prologix_vista_usuarios.module.scss';
 import { FaClock, FaArrowTrendUp, FaBorderAll } from "react-icons/fa6";
 import { FaPlus } from "react-icons/fa";
 import Image from 'next/image';
 import Logo from '../../public/logo.png';
-import GraficaHorasSemana from '../components/grafica_horas_semana';
-import GraficaHorasProyectosSemana from '../components/grafica_horas_proyectos_semana';
+import GraficaHorasSemana from '../components/consultor_grafica_horas_semana';
+import GraficaHorasProyectosSemana from '../components/consultor_grafica_horas_proyectos_semana';
 import { useEffect, useState, useRef } from 'react';
 
 export default function PrologixConsultor () {
