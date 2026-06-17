@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import styles from '../../../../styles/prologix_usuarios/prologix_admin/empresas.module.scss';
+import styles from '../../../../styles/prologix_usuarios/prologix_admin/vista_tablas.module.scss';
 import { FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
 
 export default function Proyectos() {
