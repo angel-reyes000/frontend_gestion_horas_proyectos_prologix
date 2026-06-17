@@ -45,18 +45,6 @@ export default function UsuariosPermisos () {
                                 <button onClick={() => router.push('/prologix_admin/usuarios_y_permisos/proyectos')} style={{border: '2px solid rgb(255, 184, 184)', color: 'rgb(200, 43, 43)'}}>Ver proyectos</button>
                             </div>
                         </div>
-                        <div className={styles.recuadro}>
-                            <div className={styles.recuadro_imagen} style={{backgroundColor: 'rgb(184, 255, 225)'}}>
-                                <FaUser size={30} style={{color: 'rgb(31, 152, 122)'}}/>
-                            </div>
-                            <div className={styles.recuadro_texto}>
-                                <h2>Grupos</h2>
-                                <p>Administra los grupos y sus permisos asignados.</p>
-                            </div>
-                            <div className={styles.recuadro_boton}>
-                                <button style={{border: '2px solid rgb(184, 255, 225)', color: 'rgb(31, 152, 122)'}} >Ver grupos</button>
-                            </div>
-                        </div>
                     </div>
                     <div className={styles.recuadros_recuadro}>
                         <div className={styles.recuadro}> 
@@ -80,7 +68,7 @@ export default function UsuariosPermisos () {
                                 <p>Administra la información relacionada con cada consultor.</p>
                             </div>
                             <div className={styles.recuadro_boton}>
-                                <button style={{border: '2px solid rgb(255, 184, 184)', color: 'rgb(200, 43, 43)'}}>Ver consultores</button>
+                                <button onClick={() => router.push('/prologix_admin/usuarios_y_permisos/consultores')} style={{border: '2px solid rgb(184, 255, 188)', color: 'rgb(34, 156, 68)'}}>Ver consultores</button>
                             </div>
                         </div>
                         <div className={styles.recuadro}>
@@ -92,7 +80,7 @@ export default function UsuariosPermisos () {
                                 <p>Administra la información relacionada con cada administrador.</p>
                             </div>
                             <div className={styles.recuadro_boton}>
-                                <button style={{border: '2px solid rgb(184, 255, 225)', color: 'rgb(31, 152, 122)'}} >Ver admins</button>
+                                <button style={{border: '2px solid rgb(255, 238, 184)', color: 'rgb(152, 138, 31)'}} >Ver admins</button>
                             </div>
                         </div>
                         <div className={styles.recuadro}>
@@ -104,7 +92,7 @@ export default function UsuariosPermisos () {
                                 <p>Administra la información relacionada con cada auxiliar.</p>
                             </div>
                             <div className={styles.recuadro_boton}>
-                                <button style={{border: '2px solid rgb(184, 255, 225)', color: 'rgb(31, 152, 122)'}} >Ver auxiliares</button>
+                                <button style={{border: '2px solid rgb(251, 255, 184)', color: 'rgb(140, 152, 31)'}} >Ver auxiliares</button>
                             </div>
                         </div>
                     </div>

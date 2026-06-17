@@ -26,7 +26,8 @@ export default function PrologixAdmin () {
             try {
                 const token = localStorage.getItem('access');
 
-                const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users/`, {
+                const grupo = 'consultor';
+                const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users?grupo=${grupo}`, {
                     method: 'GET',
                     headers: {
                         Authorization: `Bearer ${token}`
