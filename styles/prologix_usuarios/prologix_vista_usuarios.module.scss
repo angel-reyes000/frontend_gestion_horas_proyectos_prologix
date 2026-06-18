@@ -16,10 +16,12 @@
 }
 
 .encabezado_imagen {
-    display: grid;
+    display: flex;
+    flex-direction: row;
     grid-template-columns: 1fr 1fr;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    width: 40%;
     padding: 0.5% 1% 0.5% 1%;
     background-color: white;
     border-radius: 10px;

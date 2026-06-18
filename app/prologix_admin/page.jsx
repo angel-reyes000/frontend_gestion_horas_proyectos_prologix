@@ -151,7 +151,7 @@ export default function PrologixAdmin () {
                     </div>
                     <div className={styles.encabezado_imagen}>
                         <div className={styles.encabezado_select}>
-                            <Image src={currentLogo} width={40} height={40} alt='logo de la empresa' unoptimized />
+                            <Image src={currentLogo} width={50} height={50} alt='logo de la empresa' unoptimized />
                             <select 
                                 value={selectedProject} 
                                 onChange={(e) => setSelectedProject(e.target.value)}
