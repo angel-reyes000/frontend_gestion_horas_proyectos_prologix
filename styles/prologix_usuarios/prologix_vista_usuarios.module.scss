@@ -343,21 +343,45 @@
     }
 }
 
-.modal_buttons {
+.modal_botones {
     display: flex;
-    justify-content: start;
-    align-items: center;
-    width: 100%;
-    padding: 3%;
-    gap: 2%;
+    justify-content: space-between;    
+    padding: 2%;
+}
+
+.botones_guardar_cancelar {
+    display: flex;
+    gap: 5%;
+    width: 50%;
 
     button {
-        padding: 1% 3% 1% 3%;
-        background-color: red;
-        border-radius: 10px;
-        font-weight: 600;
         font-size: 0.9rem;
-        border: 2px solid rgb(228, 228, 228);
+        font-weight: 600;
+        border-radius: 10px;
+        width: 100%;
+        padding: 2%;
+        cursor: pointer;
+    }
+
+    button:active {
+        transform: scale(0.9);
+    }
+}
+
+.botones_borrar {
+    display: flex;
+    justify-content: end;
+    width: 10%;
+    border-radius: 5px;
+    background-color: red;
+    padding: 0%;
+
+    button {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        width: 100%;
         cursor: pointer;
     }
 

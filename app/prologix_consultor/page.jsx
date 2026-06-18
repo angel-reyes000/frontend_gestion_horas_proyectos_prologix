@@ -2,7 +2,7 @@
 
 import styles from '../../styles/prologix_usuarios/prologix_vista_usuarios.module.scss';
 import { FaClock, FaArrowTrendUp, FaBorderAll } from "react-icons/fa6";
-import { FaPlus } from "react-icons/fa";
+import { FaPlus, FaTrash } from "react-icons/fa";
 import Image from 'next/image';
 import Logo from '../../public/logo.png';
 import GraficaHorasSemana from '../components/consultor_grafica_horas_semana';
@@ -17,6 +17,7 @@ export default function PrologixConsultor () {
     const [semana, setSemana] = useState('');
     const [horas, setHoras] = useState(0);
     const [descripcion, setDescripcion] = useState('');
+    const [fecha, setFecha] = useState(''); // <-- NUEVO ESTADO PARA FECHA
     const [modalAbierto, setModalAbierto] = useState(false);
     const [registroEditando, setRegistroEditando] = useState(null);
     const [mensaje, setMensaje] = useState('');
@@ -74,7 +75,8 @@ export default function PrologixConsultor () {
     async function postData() {
         const token = localStorage.getItem('access');
         try {
-            if (!proyecto || !horas || !descripcion) {
+            // <-- SE AGREGA VALIDACIÓN DE FECHA
+            if (!proyecto || !horas || !descripcion || !fecha) {
                 setMensaje('Por favor completa todos los campos');
                 return;
             }
@@ -89,7 +91,8 @@ export default function PrologixConsultor () {
             const datosEnvio = {
                 horas: parseFloat(horas),
                 proyecto_id: proyectoSeleccionado.id,
-                descripcion: descripcion
+                descripcion: descripcion,
+                fecha_actual: fecha // <-- SE ENVÍA LA FECHA A DJANGO
             };
 
             const response = await fetch('http://localhost:8000/api/registros/', {
@@ -126,7 +129,8 @@ export default function PrologixConsultor () {
     async function putData() {
         const token = localStorage.getItem('access');
         try {
-            if (!proyecto || !semana || !horas || !descripcion) {
+            // <-- SE AGREGA VALIDACIÓN DE FECHA
+            if (!proyecto || !semana || !horas || !descripcion || !fecha) {
                 setMensaje('Por favor completa todos los campos');
                 return;
             }
@@ -141,7 +145,8 @@ export default function PrologixConsultor () {
             const datosEnvio = {
                 horas: parseFloat(horas),
                 proyecto_id: proyectoSeleccionado.id,
-                descripcion: descripcion
+                descripcion: descripcion,
+                fecha_actual: fecha // <-- SE ENVÍA LA FECHA A DJANGO
             };
 
             const response = await fetch(`http://localhost:8000/api/registros/${registroEditando.id}/`, {
@@ -175,12 +180,42 @@ export default function PrologixConsultor () {
         }
     }
 
+    async function deleteData() {
+        if (!registroEditando) return;
+        
+        const confirmar = window.confirm("¿Estás seguro de que deseas eliminar este registro?");
+        if (!confirmar) return;
+
+        const token = localStorage.getItem('access');
+        try {
+            const response = await fetch(`http://localhost:8000/api/registros/${registroEditando.id}/`, {
+                method: 'DELETE',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                }
+            });
+
+            if (response.status === 204 || response.status === 200) {
+                setMensaje('Registro eliminado exitosamente');
+                resetearFormulario();
+                setModalAbierto(false); 
+                getDataRegistros();
+            } else {
+                setMensaje('Error al eliminar registro');
+            }
+        } catch (error) {
+            console.log("Error al hacer delete en registros", error);
+            setMensaje('Error: ' + error.message);
+        }
+    }
+
     function resetearFormulario() {
         setProyecto('');
         setEmpresa('');
         setSemana('');
         setHoras(0);
         setDescripcion('');
+        setFecha(''); // <-- SE RESETEA LA FECHA
         setRegistroEditando(null);
         setMensaje('');
     }
@@ -192,6 +227,8 @@ export default function PrologixConsultor () {
         setSemana(registro.semana.toString());
         setHoras(registro.horas.toString());
         setDescripcion(registro.descripcion);
+        // <-- SE CARGA LA FECHA AL EDITAR (Toma fecha_actual o fecha según el serializer de Django)
+        setFecha(registro.fecha_actual || ''); 
         setModalAbierto(true);
     }
 
@@ -292,7 +329,12 @@ export default function PrologixConsultor () {
                         <label>
                             Horas
                             <input value={horas} onChange={(e) => setHoras(e.target.value)} />
-                        </label>                        
+                        </label>    
+                        <label>
+                            Fecha
+                            {/* <-- SE VINCULA EL INPUT DATE AL ESTADO DE REACT */}
+                            <input type='date' value={fecha} onChange={(e) => setFecha(e.target.value)} />
+                        </label>                      
                     </div>
                     <div className={styles.modal_input_description}>
                         <label>
@@ -300,18 +342,27 @@ export default function PrologixConsultor () {
                             <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)}/>
                         </label>
                     </div>
-                    <div className={styles.modal_buttons}>
-                        <button onClick={() => {
-                            setModalAbierto(false)
-                            resetearFormulario()
-                        }} style={{backgroundColor: 'white', color: 'rgb(100, 116, 139)'}}>Cancelar</button>
-                        <button onClick={() => {
-                            if (registroEditando) {
-                                putData()
-                            } else {
-                                postData()
-                            }
-                        }} style={{backgroundColor: 'rgb(37, 99, 235)', color: 'white'}}>Guardar cambios</button>
+                    <div className={styles.modal_botones}>
+                        <div className={styles.botones_guardar_cancelar}>
+                            <button onClick={() => {
+                                setModalAbierto(false)
+                                resetearFormulario()
+                            }} style={{backgroundColor: 'white', color: 'rgb(100, 116, 139)', border: '2px solid rgb(228, 228, 228)'}}>Cancelar</button>
+                            <button onClick={() => {
+                                if (registroEditando) {
+                                    putData()
+                                } else {
+                                    postData()
+                                }
+                            }} style={{backgroundColor: 'rgb(37, 99, 235)', color: 'white'}}>Guardar cambios</button>
+                        </div>
+                        {registroEditando && (
+                            <div className={styles.botones_borrar}>
+                                <button onClick={deleteData}>
+                                    <FaTrash size={20} />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </dialog>
             )}
@@ -334,10 +385,7 @@ export default function PrologixConsultor () {
                                     if (proyectoSeleccionado && proyectoSeleccionado.empresas) {
                                         if (proyectoSeleccionado.empresas.logo) {
                                             const pathLogo = proyectoSeleccionado.empresas.logo;
-                
-                                            // Forzamos a que la ruta apunte al puerto 8000 de tu backend
                                             const urlBackend = `http://localhost:8000${pathLogo.startsWith('/') ? '' : '/'}${pathLogo}`;
-                                            
                                             setLogoEmpresa(urlBackend);
                                         } else {
                                             setLogoEmpresa(null);
@@ -456,6 +504,7 @@ export default function PrologixConsultor () {
                                         <td style={{fontWeight: '600'}}>{obj.proyecto?.nombre}</td>
                                         <td>{obj.proyecto?.empresas?.nombre}</td>
                                         <td>{obj.semana}</td>
+                                        {/* LA TABLA YA ESTÁ RENDERIZANDO obj.fecha_actual AQUÍ */}
                                         <td>{obj.fecha_actual}</td>
                                         <td style={{fontWeight: '600'}}>{obj.horas}</td>
                                         <td>{obj.descripcion}</td>

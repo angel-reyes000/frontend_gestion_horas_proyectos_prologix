@@ -264,17 +264,19 @@ export default function AuxiliaresAdministrativos () {
                     </label>
                 </div>
 
-                <div className={styles.modal_buttons}>
-                    <button onClick={() => {
-                        setModalAbierto(false)
-                        refModalAdd.current?.close()
-                        resetearFormulario()
-                    }} style={{backgroundColor: 'white', color: 'rgb(100, 116, 139)'}}>Cancelar</button>
-                    <button onClick={() => {
-                        if (registroEditando) {
-                            putData()
-                        }
-                    }} style={{backgroundColor: 'rgb(37, 99, 235)', color: 'white'}}>Guardar cambios</button>
+                <div className={styles.modal_botones}>
+                        <div className={styles.botones_guardar_cancelar}>
+                            <button onClick={() => {
+                                setModalAbierto(false)
+                                refModalAdd.current?.close()
+                                resetearFormulario()
+                            }} style={{backgroundColor: 'white', color: 'rgb(100, 116, 139)', border: '2px solid rgb(228, 228, 228)'}}>Cancelar</button>
+                            <button onClick={() => {
+                                if (registroEditando) {
+                                    putData()
+                                }
+                            }} style={{backgroundColor: 'rgb(37, 99, 235)', color: 'white'}}>Guardar cambios</button>
+                        </div>                    
                 </div>
             </dialog>
 
