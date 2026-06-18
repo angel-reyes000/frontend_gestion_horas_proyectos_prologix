@@ -57,15 +57,25 @@ export default function Consultores() {
     // 2. Filtro de Búsqueda
     const filteredData = data.filter((obj) => {
         const termino = search.toLowerCase();
-        const usuarioStr = (obj.username || obj.email || '').toLowerCase();
         
-        const empresasArr = obj.registros ? Array.from(new Set(obj.registros.map(r => r.proyecto?.empresas?.nombre).filter(Boolean))) : [];
-        const proyectosArr = obj.registros ? Array.from(new Set(obj.registros.map(r => r.proyecto?.nombre).filter(Boolean))) : [];
+        // Usuario
+        const usuarioStr = (obj.username || obj.email || `Consultor ${obj.id}`).toLowerCase();
         
-        const empresasStr = empresasArr.join(' ').toLowerCase();
-        const proyectosStr = proyectosArr.join(' ').toLowerCase();
+        // Empresas (coincidiendo con lo que se renderiza en la tabla)
+        const empresasStr = obj.empresas_nombres && obj.empresas_nombres.length > 0 
+            ? obj.empresas_nombres.join(' ').toLowerCase() 
+            : 'sin empresas';
+        
+        // Proyectos (coincidiendo con lo que se renderiza en la tabla)
+        const proyectosStr = obj.proyectos_nombres && obj.proyectos_nombres.length > 0 
+            ? obj.proyectos_nombres.join(' ').toLowerCase() 
+            : 'sin proyectos asignados';
+            
+        // Estado
         const estadoStr = obj.is_active ? 'activo' : 'inactivo';
-        const fechaStr = obj.date_joined ? obj.date_joined.split('T')[0] : '';
+        
+        // Fecha de ingreso
+        const fechaStr = obj.date_joined ? obj.date_joined.split('T')[0] : 'sin fecha';
 
         return usuarioStr.includes(termino) || 
                empresasStr.includes(termino) || 

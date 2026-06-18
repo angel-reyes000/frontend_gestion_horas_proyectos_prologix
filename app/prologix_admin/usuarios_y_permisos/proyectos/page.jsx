@@ -15,10 +15,8 @@ export default function Proyectos() {
     
     // Estados del formulario
     const [currentId, setCurrentId] = useState(null);
-    const [numeroFactura, setNumeroFactura] = useState('');
     const [empresa, setEmpresa] = useState('');
     const [proyecto, setProyecto] = useState('');
-    const [facturado, setFacturado] = useState('no');
     const [descripcion, setDescripcion] = useState('');
 
     // Estados de control
@@ -67,11 +65,9 @@ export default function Proyectos() {
     useEffect(() => {
         const query = searchQuery.toLowerCase();
         const resultados = data.filter(item => 
-            item.numero_factura?.toLowerCase().includes(query) ||
             item.nombre?.toLowerCase().includes(query) ||
             item.empresas?.nombre?.toLowerCase().includes(query) ||
             item.fecha_registro?.toLowerCase().includes(query) ||
-            item.facturado?.toLowerCase().includes(query) ||
             item.descripcion?.toLowerCase().includes(query)
         );
         setFilteredData(resultados);
@@ -80,10 +76,8 @@ export default function Proyectos() {
     const openAddModal = () => {
         setIsEditMode(false);
         setCurrentId(null);
-        setNumeroFactura('');
         setEmpresa('');
         setProyecto('');
-        setFacturado('no');
         setDescripcion('');
         setIsModalOpen(true);
         setTimeout(() => refModal.current?.showModal(), 10);
@@ -92,10 +86,8 @@ export default function Proyectos() {
     const openEditModal = (obj) => {
         setIsEditMode(true);
         setCurrentId(obj.id);
-        setNumeroFactura(obj.numero_factura);
         setEmpresa(obj.empresas?.id || ''); 
         setProyecto(obj.nombre);
-        setFacturado(obj.facturado);
         setDescripcion(obj.descripcion || '');
         setIsModalOpen(true);
         setTimeout(() => refModal.current?.showModal(), 10);
@@ -129,10 +121,8 @@ export default function Proyectos() {
             
             // CORRECCIÓN: Cambiamos 'empresa_id' a 'empresas' para coincidir con tu modelo
             const payload = {
-                numero_factura: numeroFactura,
                 nombre: proyecto,
                 empresas: parseInt(empresa), 
-                facturado: facturado,
                 descripcion: descripcion
             };
 
@@ -216,10 +206,6 @@ export default function Proyectos() {
                     </div>                    
                     <div className={styles.dialog_inputs}>
                         <label>
-                            Numero de factura:
-                            <input value={numeroFactura} onChange={(e) => setNumeroFactura(e.target.value)} placeholder='Numero de factura'/>
-                        </label> 
-                        <label>
                             Nombre del proyecto:
                             <input value={proyecto} onChange={(e) => setProyecto(e.target.value)} placeholder='Nombre del proyecto'/>
                         </label> 
@@ -230,13 +216,6 @@ export default function Proyectos() {
                                 {empresasList.map(emp => (
                                     <option key={emp.id} value={emp.id}>{emp.nombre}</option>
                                 ))}
-                            </select>
-                        </label> 
-                        <label>
-                            Facturado:
-                            <select value={facturado} onChange={(e) => setFacturado(e.target.value)}>
-                                <option value="si">si</option>
-                                <option value="no">no</option>
                             </select>
                         </label> 
                         <label className={styles.label_textarea}>
@@ -288,22 +267,18 @@ export default function Proyectos() {
                     <table className={styles.tabla}>
                         <thead>
                             <tr>
-                                <td>No. Factura</td>
                                 <td>Empresa</td>
                                 <td>Proyecto</td>
                                 <td>Fecha inicio</td>
-                                <td>Facturado</td>
                                 <td>Descripcion</td>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredData.map(obj => (
                                 <tr key={obj.id} onClick={() => openEditModal(obj)} style={{ cursor: 'pointer' }}>
-                                    <td>{obj.numero_factura}</td>
                                     <td>{obj.empresas?.nombre || ''}</td>
                                     <td>{obj.nombre}</td>
                                     <td>{obj.fecha_registro}</td>
-                                    <td>{obj.facturado}</td>
                                     <td>{obj.descripcion}</td>
                                 </tr>
                             ))}
