@@ -375,7 +375,7 @@ export default function PrologixConsultor () {
                     </div>
                     <div className={styles.encabezado_imagen}>
                         <div className={styles.encabezado_select}>
-                            <Image src={logoEmpresa || Logo} width={40} height={40} alt='logo de la empresa' unoptimized={logoEmpresa ? true : false}/>
+                            <Image src={logoEmpresa || Logo} width={50} height={50} alt='logo de la empresa' unoptimized={logoEmpresa ? true : false}/>
                             <select value={proyectoFiltro} onChange={(e) => {
                                 setProyectoFiltro(e.target.value);
                                 if (e.target.value === '') {
@@ -437,10 +437,18 @@ export default function PrologixConsultor () {
 
                 <div className={styles.vista_consultor_graficas}>
                     <div className={styles.graficas_lineas}>
-                        <GraficaHorasSemana />
+                        <GraficaHorasSemana 
+                            datos={datosFiltrados} 
+                            semana={semanaKPI} 
+                            semanaFiltro={semanaFiltro} 
+                        />
                     </div>
                     <div className={styles.graficas_pastel}>
-                        <GraficaHorasProyectosSemana />
+                        <GraficaHorasProyectosSemana 
+                            datos={datosFiltrados} 
+                            semana={semanaKPI} 
+                            semanaFiltro={semanaFiltro} 
+                        />
                     </div>
                 </div>
 
