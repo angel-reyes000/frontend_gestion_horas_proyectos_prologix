@@ -4,16 +4,18 @@ import styles from '../../styles/prologix_usuarios/prologix_vista_usuarios.modul
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import BarChart from '../components/admin_barchart';
-import LineChart from '../components/admin_linechart';
+import BarChart from '../components/auxiliar_barchart';
+import LineChart from '../components/auxiliar_linechart';
 import { FaExclamationTriangle } from "react-icons/fa";
 import { FaClock, FaArrowTrendUp, FaBorderAll } from "react-icons/fa6";
 import Logo from '../../public/logo.png';
 
-export default function PrologixAdmin () {
+export default function AuxiliaresAdministrativos () {
     const [data, setData] = useState([]);
     const refModalInvalidAccess = useRef(null);
+    const refModalAdd = useRef(null);
     const [invalidAccess, setInvalidAccess] = useState(false);
+    const [modalAbierto, setModalAbierto] = useState(false);
     const router = useRouter();
 
     // Estados para los filtros
@@ -21,59 +23,45 @@ export default function PrologixAdmin () {
     const [selectedWeek, setSelectedWeek] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // 1. NUEVO: Agregamos el estado para validar la autorización
-    const [autorizado, setAutorizado] = useState(false);
+    // Estados para el formulario del modal
+    const [registroEditando, setRegistroEditando] = useState(null);
+    const [mensaje, setMensaje] = useState('');
+    const [proyecto, setProyecto] = useState('');
+    const [empresa, setEmpresa] = useState('');
+    const [horas, setHoras] = useState('');
+    const [descripcion, setDescripcion] = useState('');
+    const [numeroFactura, setNumeroFactura] = useState('');
+    const [facturado, setFacturado] = useState('');
 
-    // 2. NUEVO: Agregamos este useEffect para verificar el rol ANTES de hacer nada
-    useEffect(() => {
-        const rol = localStorage.getItem('rol_usuario');
-        if (rol !== 'administrador') {
-            // Si el rol en localStorage no es administrador, lo mandamos al login
-            router.replace('/login');
-        } else {
-            // Si es administrador, le damos permiso para ver la pantalla
-            setAutorizado(true);
-        }
-    }, [router]);
+    async function getData () {
+        try {
+            const token = localStorage.getItem('access');
+            const grupo = 'consultor';
 
-    useEffect(() => {
-        async function getData () {
-            // ... (tu código se mantiene exactamente igual)
-            try {
-                const token = localStorage.getItem('access');
-
-                const grupo = 'consultor';
-                const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users?grupo=${grupo}`, {
-                    method: 'GET',
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                })
-
-                if (response.status !== 200) {
-                    setInvalidAccess(true)
-                    refModalInvalidAccess.current?.showModal();
+            const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/auxiliar/users?grupo=${grupo}`, {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${token}`
                 }
+            })
 
-                const datos = await response.json()
-                setData(datos);
-                
-            } catch (error) {
-                console.log("Error: ", error.message)
+            if (response.status !== 200) {
+                setInvalidAccess(true)
+                refModalInvalidAccess.current?.showModal();
             }
+
+            const datos = await response.json()
+            console.log(datos)
+            setData(datos);
+            
+        } catch (error) {
+            console.log("Error: ", error.message)
         }
-
-        // Solo traemos los datos si ya comprobamos que es administrador
-        if (autorizado) {
-            getData();
-        }
-
-    }, [autorizado]) // Dependencia actualizada para que reaccione al permiso
-
-    // 3. NUEVO: Si no está autorizado, devolvemos null para que la pantalla se quede en blanco (evita el parpadeo de la vista admin)
-    if (!autorizado) {
-        return null;
     }
+
+    useEffect(() => {
+        getData()
+    }, [])
 
     function modalInvalidAccess () {
         return invalidAccess ? (
@@ -87,25 +75,104 @@ export default function PrologixAdmin () {
         ) : null
     }
 
-    // 1. Aplanar los datos: Convertir la estructura anidada de usuarios a una lista plana de registros
+    // Funciones de control del Formulario/Modal
+    const resetearFormulario = () => {
+        setRegistroEditando(null);
+        setProyecto('');
+        setEmpresa('');
+        setHoras('');
+        setDescripcion('');
+        setNumeroFactura('');
+        setFacturado('');
+        setMensaje('');
+    };
+
+    const abrirModalEditar = (registro) => {
+        setRegistroEditando(registro);
+        setProyecto(registro.proyecto?.nombre || '');
+        setEmpresa(registro.proyecto?.empresas?.nombre || '');
+        setHoras(registro.horas || '');
+        setDescripcion(registro.descripcion || '');
+        setNumeroFactura(registro.numero_factura || '');
+        setFacturado(registro.facturado || '');
+        setModalAbierto(true);
+        refModalAdd.current?.showModal();
+    };
+
+    const putData = async () => {
+        try {
+            const token = localStorage.getItem('access');
+            if (!token) return;
+
+            // 1. Armamos el payload
+            const payload = {
+                proyecto_id: registroEditando.proyecto?.id,
+                numero_factura: numeroFactura,
+                facturado: facturado,
+                horas: horas,             
+                descripcion: descripcion  
+            };
+
+            console.log("Datos que se están enviando a Django:", payload);
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/registros/${registroEditando.id}/`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                // Actualiza el estado local
+                setData(prevData => 
+                    prevData.map(user => ({
+                        ...user,
+                        registros: (user.registros || []).map(reg => 
+                            reg.id === registroEditando.id 
+                                ? { ...reg, numero_factura: numeroFactura, facturado: facturado }
+                                : reg
+                        )
+                    }))
+                );
+
+                setModalAbierto(false);
+                refModalAdd.current?.close();
+                resetearFormulario();
+            } else {
+                // 2. CAPTURAMOS EL ERROR EXACTO DE DJANGO
+                const errorData = await response.json();
+                console.error("Motivo del rechazo de Django (400):", errorData);
+                
+                // Mostramos el error convertido a texto en el recuadro rojo del modal
+                setMensaje(JSON.stringify(errorData));
+            }
+        } catch (error) {
+            console.error("Error en la petición PUT:", error);
+            setMensaje('Error de conexión con el servidor');
+        }
+    };
+
+    // 1. Aplanar los datos
     const allRecords = data.flatMap(user => 
         (user.registros || []).map(registro => ({
             ...registro,
-            username: user.username || user.email // Extraemos el usuario que hizo el registro
+            username: user.username || user.email
         }))
     );
 
-    // 2. Extraer valores únicos para los selects (Proyectos y Semanas)
+    // 2. Extraer valores únicos para los selects y el modal
     const uniqueProjectsMap = new Map();
     allRecords.forEach(rec => {
         if (rec.proyecto && !uniqueProjectsMap.has(rec.proyecto.id)) {
             uniqueProjectsMap.set(rec.proyecto.id, rec.proyecto);
         }
     });
-    const uniqueProjects = Array.from(uniqueProjectsMap.values());
+    const selectProyectos = Array.from(uniqueProjectsMap.values());
     const uniqueWeeks = [...new Set(allRecords.map(rec => rec.semana).filter(Boolean))].sort((a,b) => a - b);
 
-    // 3. Aplicar Filtros (Proyecto, Semana y Buscador Global)
+    // 3. Aplicar Filtros
     const filteredRecords = allRecords.filter(rec => {
         const matchProject = selectedProject === '' || rec.proyecto?.id.toString() === selectedProject;
         const matchWeek = selectedWeek === '' || rec.semana?.toString() === selectedWeek;
@@ -124,7 +191,7 @@ export default function PrologixAdmin () {
         return matchProject && matchWeek && matchSearch;
     });
 
-    // 4. Calcular métricas basadas en los datos FILTRADOS
+    // 4. Calcular métricas
     const totalHoras = filteredRecords.reduce((acc, rec) => acc + parseFloat(rec.horas || 0), 0);
     const uniqueDates = new Set(filteredRecords.map(rec => rec.fecha_actual)).size;
     const promedioDiario = uniqueDates > 0 ? (totalHoras / uniqueDates) : 0;
@@ -141,13 +208,81 @@ export default function PrologixAdmin () {
 
     return (
         <>  
-            {/* TU JSX SE MANTIENE EXACTAMENTE IGUAL */}
             {modalInvalidAccess()}
+
+            {/* Modal de edición de registro */}
+            <dialog 
+                ref={refModalAdd} 
+                className={styles.modal} 
+                style={{ display: modalAbierto ? '' : 'none' }}
+                onCancel={() => {
+                    setModalAbierto(false);
+                    resetearFormulario();
+                }}
+            >
+                <div className={styles.modal_header}>
+                    <h1>{registroEditando ? 'Editar registro' : 'Nuevo registro'}</h1>
+                    <button onClick={() => {
+                        setModalAbierto(false)
+                        refModalAdd.current?.close()
+                        resetearFormulario()
+                    }}>x</button>
+                </div>
+                {mensaje && <div style={{padding: '10px', margin: '10px', backgroundColor: '#ffe3e3', color: '#b71c1c', borderRadius: '4px'}}>{mensaje}</div>}
+                
+                <div className={styles.modal_inputs}>
+                    <label>
+                        Proyecto                            
+                        <input value={proyecto} disabled style={{ backgroundColor: '#e9ecef', cursor: 'not-allowed' }} />
+                    </label>
+                    <label>
+                        Empresa
+                        <input value={empresa} disabled style={{ backgroundColor: '#e9ecef', cursor: 'not-allowed' }} />
+                    </label>
+                    <label>
+                        Horas
+                        <input value={horas} disabled style={{ backgroundColor: '#e9ecef', cursor: 'not-allowed' }} />
+                    </label>                        
+                    <label>
+                        N° Factura
+                        <input value={numeroFactura} onChange={(e) => setNumeroFactura(e.target.value)} />
+                    </label>
+                    <label>
+                        Facturado
+                        <select value={facturado} onChange={(e) => setFacturado(e.target.value)}>
+                            <option value="">-- Selecciona --</option>
+                            <option value="si">si</option>
+                            <option value="no">no</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div className={styles.modal_input_description}>
+                    <label>
+                        Descripcion
+                        <textarea value={descripcion} disabled style={{ backgroundColor: '#e9ecef', cursor: 'not-allowed' }}/>
+                    </label>
+                </div>
+
+                <div className={styles.modal_buttons}>
+                    <button onClick={() => {
+                        setModalAbierto(false)
+                        refModalAdd.current?.close()
+                        resetearFormulario()
+                    }} style={{backgroundColor: 'white', color: 'rgb(100, 116, 139)'}}>Cancelar</button>
+                    <button onClick={() => {
+                        if (registroEditando) {
+                            putData()
+                        }
+                    }} style={{backgroundColor: 'rgb(37, 99, 235)', color: 'white'}}>Guardar cambios</button>
+                </div>
+            </dialog>
+
             <div className={styles.vista_consultor}>
                 <div className={styles.vista_consultor_encabezado}>
                     <div className={styles.encabezado_titulo}>
-                        <h1>Gestión de Proyectos</h1>
-                        <p>Resumen y gestión de consultores</p>  
+                        <h1>Auxiliares Administrativos</h1>
+                        <p>Gestión de registros y facturación</p>  
                     </div>
                     <div className={styles.encabezado_imagen}>
                         <div className={styles.encabezado_select}>
@@ -157,7 +292,7 @@ export default function PrologixAdmin () {
                                 onChange={(e) => setSelectedProject(e.target.value)}
                             >
                                 <option value=''>Todos los Proyectos</option>
-                                {uniqueProjects.map(proj => (
+                                {selectProyectos.map(proj => (
                                     <option key={proj.id} value={proj.id}>{proj.nombre}</option>
                                 ))}
                             </select>
@@ -211,7 +346,6 @@ export default function PrologixAdmin () {
                             <h1>Registro de horas</h1>
                         </div>
                         <div className={styles.vista_consultor_acciones}>
-                            
                             <div className={styles.acciones_select}>
                                 <label>
                                     Semana:
@@ -226,7 +360,6 @@ export default function PrologixAdmin () {
                                     </select>
                                 </label>
                             </div>
-                            
                             <div className={styles.acciones_input}>
                                 <input 
                                     placeholder='Buscar...' 
@@ -253,7 +386,11 @@ export default function PrologixAdmin () {
                             </thead>
                             <tbody>
                                 {filteredRecords.map((registro, idx) => (
-                                    <tr key={registro.id || idx} style={{cursor: 'pointer', transition: 'background-color 0.2s'}}>
+                                    <tr 
+                                        key={registro.id || idx} 
+                                        onClick={() => abrirModalEditar(registro)}
+                                        style={{cursor: 'pointer', transition: 'background-color 0.2s'}}
+                                    >
                                         <td>{registro.numero_factura || 'N/A'}</td>
                                         <td>{registro.semana}</td>
                                         <td>{registro.fecha_actual}</td>
@@ -274,7 +411,6 @@ export default function PrologixAdmin () {
                             </tbody>
                         </table> 
                     </div>
-                    
                 </div>
             </div>
         </>
