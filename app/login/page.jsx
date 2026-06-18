@@ -43,11 +43,20 @@ export default function Login(){
 
             if (access !== undefined && refresh !== undefined) {
                 if (data.groups.includes("administrador")) {
+                    // NUEVO: Guardamos el rol
+                    localStorage.setItem("rol_usuario", "administrador"); 
                     router.push('/prologix_admin')
-                } else if (data.groups.includes("consultor")) {
-                    router.push('/prologix_consultor')
-                }
 
+                } else if (data.groups.includes("consultor")) {
+                    // NUEVO: Guardamos el rol
+                    localStorage.setItem("rol_usuario", "consultor"); 
+                    router.push('/prologix_consultor')
+
+                } else if (data.groups.includes("auxiliar")) {
+                    // NUEVO: Guardamos el rol
+                    localStorage.setItem("rol_usuario", "auxiliar"); 
+                    router.push('/prologix_auxiliar')
+                }
             } else {
                 console.log("Acceso invalido")
                 setInvalidAccess(true)

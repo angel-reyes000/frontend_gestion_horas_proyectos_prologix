@@ -9,9 +9,31 @@ import { FaUser,
         FaUserPlus
 } from "react-icons/fa6";
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react'; // <-- Importamos useEffect y useState
 
 export default function UsuariosPermisos () {
     const router = useRouter();
+
+    // 1. NUEVO: Agregamos el estado para validar la autorización
+    const [autorizado, setAutorizado] = useState(false);
+
+    // 2. NUEVO: Agregamos este useEffect para verificar el rol ANTES de mostrar la pantalla
+    useEffect(() => {
+        const rol = localStorage.getItem('rol_usuario');
+        if (rol !== 'administrador') {
+            // Si el rol en localStorage no es admin, lo expulsamos al login
+            router.replace('/login');
+        } else {
+            // Si es admin, le damos permiso para ver la pantalla
+            setAutorizado(true);
+        }
+    }, [router]);
+
+    // 3. NUEVO: Si no está autorizado, devolvemos null para evitar que la vista parpadee
+    if (!autorizado) {
+        return null;
+    }
+
     return (
         <>
             <div className={styles.usuarios_permisos}>
@@ -92,7 +114,7 @@ export default function UsuariosPermisos () {
                                 <p>Administra la información relacionada con cada auxiliar.</p>
                             </div>
                             <div className={styles.recuadro_boton}>
-                                <button style={{border: '2px solid rgb(251, 255, 184)', color: 'rgb(140, 152, 31)'}} >Ver auxiliares</button>
+                                <button onClick={() => router.push('/prologix_admin/usuarios_y_permisos/auxiliares_administrativos')} style={{border: '2px solid rgb(251, 255, 184)', color: 'rgb(140, 152, 31)'}} >Ver auxiliares</button>
                             </div>
                         </div>
                     </div>

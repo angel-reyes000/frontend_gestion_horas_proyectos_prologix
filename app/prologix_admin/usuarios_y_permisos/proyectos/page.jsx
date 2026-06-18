@@ -9,6 +9,21 @@ import { FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
 export default function Proyectos() {
     const router = useRouter();
 
+    // 1. NUEVO: Estado para validar la autorización
+    const [autorizado, setAutorizado] = useState(false);
+
+    // 2. NUEVO: Efecto para verificar el rol ANTES de mostrar la pantalla
+    useEffect(() => {
+        const rol = localStorage.getItem('rol_usuario');
+        if (rol !== 'administrador') {
+            // Si no es admin, lo redirigimos al login
+            router.replace('/login');
+        } else {
+            // Si es admin, le permitimos ver la pantalla
+            setAutorizado(true);
+        }
+    }, [router]);
+
     const [data, setData] = useState([]);
     const [empresasList, setEmpresasList] = useState([]);
     const [filteredData, setFilteredData] = useState([]);
@@ -27,39 +42,42 @@ export default function Proyectos() {
     const refModal = useRef(null);
 
     useEffect(() => {
-        const token = localStorage.getItem('access');
-        const headers = {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-        };
+        // Solo llamamos a la API si el usuario está autorizado
+        if (autorizado) {
+            const token = localStorage.getItem('access');
+            const headers = {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+            };
 
-        async function fetchData() {
-            try {
-                // Fetch Proyectos
-                const resProyectos = await fetch('http://localhost:8000/api/proyectos/', { headers });
-                if (resProyectos.status === 200) {
-                    const datosProyectos = await resProyectos.json();
-                    setData(datosProyectos);
-                    setFilteredData(datosProyectos);
-                } else {
-                    console.log("Error al cargar proyectos");
-                }
+            async function fetchData() {
+                try {
+                    // Fetch Proyectos
+                    const resProyectos = await fetch('http://localhost:8000/api/proyectos/', { headers });
+                    if (resProyectos.status === 200) {
+                        const datosProyectos = await resProyectos.json();
+                        setData(datosProyectos);
+                        setFilteredData(datosProyectos);
+                    } else {
+                        console.log("Error al cargar proyectos");
+                    }
 
-                // Fetch Empresas para el select
-                const resEmpresas = await fetch('http://localhost:8000/api/empresas/', { headers });
-                if (resEmpresas.status === 200) {
-                    const datosEmpresas = await resEmpresas.json();
-                    setEmpresasList(datosEmpresas);
-                } else {
-                    console.log("Error al cargar empresas");
+                    // Fetch Empresas para el select
+                    const resEmpresas = await fetch('http://localhost:8000/api/empresas/', { headers });
+                    if (resEmpresas.status === 200) {
+                        const datosEmpresas = await resEmpresas.json();
+                        setEmpresasList(datosEmpresas);
+                    } else {
+                        console.log("Error al cargar empresas");
+                    }
+                } catch (error) {
+                    console.log("Error en fetch: ", error.message);
                 }
-            } catch (error) {
-                console.log("Error en fetch: ", error.message);
             }
-        }
 
-        fetchData();
-    }, []);
+            fetchData();
+        }
+    }, [autorizado]); // Dependencia agregada para que se ejecute al confirmar autorización
 
     // Filtro de búsqueda global
     useEffect(() => {
@@ -188,6 +206,11 @@ export default function Proyectos() {
         } catch (error) {
             console.log("Error al eliminar: ", error.message);
         }
+    }
+
+    // 3. NUEVO: Si no está autorizado, devolvemos null para evitar parpadeos visuales
+    if (!autorizado) {
+        return null;
     }
 
     function modalAdd() {

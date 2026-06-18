@@ -7,13 +7,29 @@ import { useState, useEffect, useRef } from 'react';
 
 export default function Consultores() {
     const router = useRouter();
+    
+    // 1. NUEVO: Estado para validar la autorización
+    const [autorizado, setAutorizado] = useState(false);
+
+    // 2. NUEVO: Efecto para verificar el rol ANTES de mostrar la pantalla
+    useEffect(() => {
+        const rol = localStorage.getItem('rol_usuario');
+        if (rol !== 'administrador') {
+            // Si no es admin, lo redirigimos al login
+            router.replace('/login');
+        } else {
+            // Si es admin, le permitimos ver la pantalla
+            setAutorizado(true);
+        }
+    }, [router]);
+
     const [data, setData] = useState([]);
     const [allProyectos, setAllProyectos] = useState([]); 
     const [search, setSearch] = useState('');
     
     // Estados para el Modal y CRUD
     const dialogRef = useRef(null);
-    const [isOpen, setIsOpen] = useState(false); // <--- Nuevo estado para forzar la visibilidad
+    const [isOpen, setIsOpen] = useState(false); 
     const [modalMode, setModalMode] = useState('create');
     const [formData, setFormData] = useState({
         id: null,
@@ -51,8 +67,11 @@ export default function Consultores() {
     };
 
     useEffect(() => {
-        fetchData();
-    }, []);
+        // Solo llamamos a la API si el usuario está autorizado
+        if (autorizado) {
+            fetchData();
+        }
+    }, [autorizado]); // Dependencia agregada para que se ejecute al confirmar autorización
 
     // 2. Filtro de Búsqueda
     const filteredData = data.filter((obj) => {
@@ -88,7 +107,7 @@ export default function Consultores() {
     const abrirModalCrear = () => {
         setModalMode('create');
         setFormData({ id: null, username: '', password: '', proyectos: [], is_active: true });
-        setIsOpen(true); // <--- Actualizamos el estado
+        setIsOpen(true); 
         dialogRef.current?.showModal();
     };
 
@@ -118,7 +137,7 @@ export default function Consultores() {
     };
 
     const cerrarModal = () => {
-        setIsOpen(false); // <--- Actualizamos el estado para forzar el ocultamiento
+        setIsOpen(false); 
         dialogRef.current?.close();
     };
 
@@ -186,6 +205,11 @@ export default function Consultores() {
             console.error("Error: ", error.message);
         }
     };
+
+    // 3. NUEVO: Si no está autorizado, devolvemos null para evitar parpadeos visuales
+    if (!autorizado) {
+        return null;
+    }
 
     return (
         <>

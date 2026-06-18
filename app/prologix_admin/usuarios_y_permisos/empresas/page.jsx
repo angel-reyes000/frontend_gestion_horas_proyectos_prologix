@@ -9,6 +9,21 @@ import { FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
 export default function Empresas() {
     const router = useRouter();
 
+    // 1. NUEVO: Estado para validar la autorización
+    const [autorizado, setAutorizado] = useState(false);
+
+    // 2. NUEVO: Efecto para verificar el rol ANTES de mostrar la pantalla
+    useEffect(() => {
+        const rol = localStorage.getItem('rol_usuario');
+        if (rol !== 'administrador') {
+            // Si no es admin, lo redirigimos al login
+            router.replace('/login');
+        } else {
+            // Si es admin, le permitimos ver la pantalla
+            setAutorizado(true);
+        }
+    }, [router]);
+
     const [data, setData] = useState([]);
     const [empresa, setEmpresa] = useState('');
     const [logo, setLogo] = useState(null);
@@ -19,31 +34,34 @@ export default function Empresas() {
     const refModal = useRef(null);
 
     useEffect(() => {
-        const token = localStorage.getItem('access');
+        // Solo llamamos a la API si el usuario está autorizado
+        if (autorizado) {
+            const token = localStorage.getItem('access');
 
-        async function getData () {
-            try {
-                const response = await fetch('http://localhost:8000/api/empresas/',{
-                    method: 'GET',
-                    headers: {
-                        'content-type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                    },
-                });
+            async function getData () {
+                try {
+                    const response = await fetch('http://localhost:8000/api/empresas/',{
+                        method: 'GET',
+                        headers: {
+                            'content-type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                    });
 
-                if (response.status !== 200) {
-                    console.log("Error en funcion getData");
-                } else {
-                    const datos = await response.json();
-                    setData(datos);
+                    if (response.status !== 200) {
+                        console.log("Error en funcion getData");
+                    } else {
+                        const datos = await response.json();
+                        setData(datos);
+                    }
+                } catch (error) {
+                    console.log("Error de conexión:", error.message);
                 }
-            } catch (error) {
-                console.log("Error de conexión:", error.message);
             }
-        }
 
-        getData();
-    }, []);
+            getData();
+        }
+    }, [autorizado]); // Dependencia agregada para que se ejecute al confirmar autorización
 
     const openModal = (obj = null) => {
         if (obj) {
@@ -159,6 +177,11 @@ export default function Empresas() {
             String(val).toLowerCase().includes(search.toLowerCase())
         );
     });
+
+    // 3. NUEVO: Si no está autorizado, devolvemos null para evitar parpadeos visuales
+    if (!autorizado) {
+        return null;
+    }
 
     function modalAdd() {
         return (
