@@ -197,7 +197,7 @@ export default function PrologixAdmin () {
                         <BarChart records={filteredRecords} />
                     </div>
                     <div className={styles.graficas_pastel}>
-                        <LineChart records={filteredRecords} />
+                        <LineChart records={filteredRecords} /> 
                     </div>
                 </div>
 

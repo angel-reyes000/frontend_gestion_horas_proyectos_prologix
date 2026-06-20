@@ -17,8 +17,10 @@ export default function LineChart({ records = [] }) {
             }
         });
 
-        // Ordenamos las semanas de menor a mayor para el Eje X
-        const semanasOrdenadas = Object.keys(horasPorSemana).sort((a, b) => parseInt(a) - parseInt(b));
+        // Ordenamos las semanas de menor a mayor y tomamos solo las ÚLTIMAS 12 para el Eje X
+        const semanasOrdenadas = Object.keys(horasPorSemana)
+            .sort((a, b) => parseInt(a) - parseInt(b))
+            .slice(-12); // <-- Filtro de las últimas 12 semanas
 
         // Preparamos los arreglos finales para la gráfica
         const xData = semanasOrdenadas.map(semana => `Semana ${semana}`);
@@ -39,7 +41,7 @@ export default function LineChart({ records = [] }) {
             left: '3%',
             right: '5%',
             bottom: '5%',
-            top: '15%',
+            top: '20%',
             containLabel: true
         },
         tooltip: {
