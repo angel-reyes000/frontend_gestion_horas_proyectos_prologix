@@ -78,7 +78,7 @@ export default function UsuariosPermisos () {
                                 <p>Administra la información relacionada con cada cliente.</p>
                             </div>
                             <div className={styles.recuadro_boton}>
-                                <button onClick={() => router.push('/prologix_admin/usuarios_y_permisos/empresas')} style={{border: '2px solid rgb(208, 184, 255)', color: 'rgb(95, 43, 200)'}}>Ver clientes</button>
+                                <button onClick={() => router.push('/prologix_admin/usuarios_y_permisos/clientes')} style={{border: '2px solid rgb(208, 184, 255)', color: 'rgb(95, 43, 200)'}}>Ver clientes</button>
                             </div>
                         </div>
                         <div className={styles.recuadro}>
@@ -102,7 +102,7 @@ export default function UsuariosPermisos () {
                                 <p>Administra la información relacionada con cada administrador.</p>
                             </div>
                             <div className={styles.recuadro_boton}>
-                                <button style={{border: '2px solid rgb(255, 238, 184)', color: 'rgb(152, 138, 31)'}} >Ver admins</button>
+                                <button onClick={() => router.push('/prologix_admin/usuarios_y_permisos/administradores')} style={{border: '2px solid rgb(255, 238, 184)', color: 'rgb(152, 138, 31)'}} >Ver admins</button>
                             </div>
                         </div>
                         <div className={styles.recuadro}>

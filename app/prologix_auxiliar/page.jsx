@@ -288,18 +288,23 @@ export default function AuxiliaresAdministrativos () {
                     </div>
                     <div className={styles.encabezado_imagen}>
                         <div className={styles.encabezado_select}>
-                            <Image src={currentLogo} width={50} height={50} alt='logo de la empresa' unoptimized />
-                            <select 
-                                value={selectedProject} 
-                                onChange={(e) => setSelectedProject(e.target.value)}
-                            >
-                                <option value=''>Todos los Proyectos</option>
-                                {selectProyectos.map(proj => (
-                                    <option key={proj.id} value={proj.id}>{proj.nombre}</option>
-                                ))}
-                            </select>
+                            <label>
+                                Mostrar por:
+                                <select 
+                                    value={selectedProject} 
+                                    onChange={(e) => setSelectedProject(e.target.value)}
+                                >
+                                    <option value=''>Todos los Proyectos</option>
+                                    {selectProyectos.map(proj => (
+                                        <option key={proj.id} value={proj.id}>{proj.nombre}</option>
+                                    ))}
+                                </select>
+                            </label>
                         </div>
-                        <Image src={Logo} width={200} height={200} alt='logo de la empresa' unoptimized />
+                        <div className={styles.encabezado_logos}>
+                            <Image src={currentLogo} width={200} height={200} alt='logo de la empresa' unoptimized />
+                            <Image src={Logo} width={120} height={120} alt='logo de la empresa' unoptimized style={{maxHeight: '30px'}}/>
+                        </div>
                     </div>
                 </div>
 
@@ -335,10 +340,10 @@ export default function AuxiliaresAdministrativos () {
 
                 <div className={styles.vista_consultor_graficas}>
                     <div className={styles.graficas_lineas}>
-                        <BarChart />
+                        <BarChart records={filteredRecords} />
                     </div>
                     <div className={styles.graficas_pastel}>
-                        <LineChart />
+                        <LineChart records={filteredRecords} />
                     </div>
                 </div>
 

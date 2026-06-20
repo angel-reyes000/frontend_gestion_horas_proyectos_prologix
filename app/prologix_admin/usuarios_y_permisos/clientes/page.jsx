@@ -5,13 +5,13 @@ import { FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 
-export default function AuxiliaresVista() {
+export default function Clientes() {
     const router = useRouter();
     
-    // 1. Estado para validar la autorización
+    // 1. NUEVO: Estado para validar la autorización
     const [autorizado, setAutorizado] = useState(false);
 
-    // 2. Efecto para verificar el rol ANTES de mostrar la pantalla
+    // 2. NUEVO: Efecto para verificar el rol ANTES de mostrar la pantalla
     useEffect(() => {
         const rol = localStorage.getItem('rol_usuario');
         if (rol !== 'administrador') {
@@ -24,6 +24,7 @@ export default function AuxiliaresVista() {
     }, [router]);
 
     const [data, setData] = useState([]);
+    const [allProyectos, setAllProyectos] = useState([]); 
     const [search, setSearch] = useState('');
     
     // Estados para el Modal y CRUD
@@ -32,10 +33,11 @@ export default function AuxiliaresVista() {
     const [modalMode, setModalMode] = useState('create');
     const [formData, setFormData] = useState({
         id: null,
-        nombre: '', // <--- CAMBIO: Añadido para el control del input
-        email: '',  // <--- CAMBIO: Añadido para el control del input
+        nombre: '',
+        email: '',
         username: '',
         password: '',
+        proyectos: [], 
         is_active: true
     });
 
@@ -48,13 +50,18 @@ export default function AuxiliaresVista() {
     // 1. Obtener Datos Iniciales
     const fetchData = async () => {
         try {
-            // Cambiado al grupo 'auxiliar'
-            const grupo = 'auxiliar'; 
+            const grupo = 'cliente'; // <--- CAMBIO: Ahora busca por el grupo cliente
             const resUsers = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users?grupo=${grupo}`, {
                 method: 'GET',
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (resUsers.ok) setData(await resUsers.json());
+
+            const resProyectos = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/proyectos`, {
+                method: 'GET',
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (resProyectos.ok) setAllProyectos(await resProyectos.json());
 
         } catch (error) {
             console.error("Error al obtener datos: ", error.message);
@@ -66,17 +73,34 @@ export default function AuxiliaresVista() {
         if (autorizado) {
             fetchData();
         }
-    }, [autorizado]);
+    }, [autorizado]); 
 
     // 2. Filtro de Búsqueda
     const filteredData = data.filter((obj) => {
         const termino = search.toLowerCase();
         
-        const usuarioStr = (obj.username || obj.email || `Auxiliar ${obj.id}`).toLowerCase();
+        // Usuario
+        const usuarioStr = (obj.username || obj.email || `Cliente ${obj.id}`).toLowerCase(); // <--- CAMBIO: Consultor por Cliente
+        
+        // Empresas
+        const empresasStr = obj.empresas_nombres && obj.empresas_nombres.length > 0 
+            ? obj.empresas_nombres.join(' ').toLowerCase() 
+            : 'sin empresas';
+        
+        // Proyectos
+        const proyectosStr = obj.proyectos_nombres && obj.proyectos_nombres.length > 0 
+            ? obj.proyectos_nombres.join(' ').toLowerCase() 
+            : 'sin proyectos asignados';
+            
+        // Estado
         const estadoStr = obj.is_active ? 'activo' : 'inactivo';
+        
+        // Fecha de ingreso
         const fechaStr = obj.date_joined ? obj.date_joined.split('T')[0] : 'sin fecha';
 
         return usuarioStr.includes(termino) || 
+               empresasStr.includes(termino) || 
+               proyectosStr.includes(termino) || 
                estadoStr.includes(termino) || 
                fechaStr.includes(termino);
     });
@@ -84,20 +108,29 @@ export default function AuxiliaresVista() {
     // 3. Manejo del Formulario y Modal
     const abrirModalCrear = () => {
         setModalMode('create');
-        // <--- CAMBIO: Se limpian nombre y email al crear
-        setFormData({ id: null, nombre: '', email: '', username: '', password: '', is_active: true });
+        setFormData({ id: null, nombre: '', email: '', username: '', password: '', proyectos: [], is_active: true });
         setIsOpen(true); 
         dialogRef.current?.showModal();
     };
 
     const abrirModalEditar = (user) => {
         setModalMode('edit');
+        console.log("Usuario recibido del backend:", user);
+        
+        const projectIds = user.registros 
+            ? Array.from(new Set(user.registros.map(r => {
+                const id = typeof r.proyecto === 'object' ? r.proyecto?.id : r.proyecto;
+                return parseInt(id);
+            }).filter(id => !isNaN(id)))) 
+            : [];
+
         setFormData({
             id: user.id,
-            nombre: user.first_name || user.nombre || '', // <--- CAMBIO: Obtener nombre del backend
-            email: user.email || '',                      // <--- CAMBIO: Obtener email del backend
+            nombre: user.first_name || user.nombre || '', 
+            email: user.email || '',                      
             username: user.username,
             password: '', 
+            proyectos: user.proyectos_asignados || [], 
             is_active: user.is_active
         });
         
@@ -110,6 +143,18 @@ export default function AuxiliaresVista() {
         dialogRef.current?.close();
     };
 
+    const handleProyectosChange = (e) => {
+        const options = Array.from(e.target.selectedOptions);
+        const values = options.map(opt => parseInt(opt.value));
+        setFormData({ ...formData, proyectos: values });
+    };
+
+    const empresasRelacionadas = allProyectos
+        .filter(p => formData.proyectos.includes(p.id) && p.empresas)
+        .map(p => p.empresas);
+    
+    const empresasUnicasForm = Array.from(new Map(empresasRelacionadas.map(e => [e.id, e])).values());
+
     // 4. Funciones CRUD
     const handleGuardar = async () => {
         try {
@@ -120,12 +165,13 @@ export default function AuxiliaresVista() {
             const method = modalMode === 'create' ? 'POST' : 'PUT'; 
 
             const payload = {
-                first_name: formData.nombre, // <--- CAMBIO: Se envía el nombre
-                nombre: formData.nombre,     // <--- CAMBIO: Se envía el nombre
-                email: formData.email,       // <--- CAMBIO: Se envía el email
+                first_name: formData.nombre,
+                nombre: formData.nombre,
+                email: formData.email,
                 username: formData.username,
                 is_active: formData.is_active,
-                grupos: ['auxiliar'] // Asignando el grupo 'auxiliar'
+                proyectos: formData.proyectos,
+                grupos: ['cliente'] // <--- CAMBIO: Asignar al grupo cliente
             };
 
             if (formData.password) payload.password = formData.password;
@@ -172,7 +218,6 @@ export default function AuxiliaresVista() {
 
     return (
         <>
-            {/* MODAL */}
             <dialog 
                 ref={dialogRef} 
                 className={styles.dialog} 
@@ -189,7 +234,6 @@ export default function AuxiliaresVista() {
                 </div>                  
                 
                 <div className={styles.dialog_inputs}>
-                    {/* <--- CAMBIO: Inputs controlados de nombre y email ---> */}
                     <label>
                         Nombre:
                         <input 
@@ -206,7 +250,7 @@ export default function AuxiliaresVista() {
                             value={formData.email}
                             onChange={(e) => setFormData({...formData, email: e.target.value})}
                         />
-                    </label>
+                    </label>  
                     <label>
                         Usuario:
                         <input 
@@ -218,12 +262,31 @@ export default function AuxiliaresVista() {
                     <label>
                         Contraseña:
                         <input 
-                            type="password" 
+                            type="password"
                             placeholder={modalMode === 'edit' ? "Dejar en blanco para no cambiar..." : "Contraseña..."} 
                             value={formData.password}
                             onChange={(e) => setFormData({...formData, password: e.target.value})}
                         />
-                    </label>                                          
+                    </label>
+                    
+                    <label>
+                        Proyectos:
+                        <select multiple value={formData.proyectos} onChange={handleProyectosChange}>
+                            {allProyectos.map(p => (
+                                <option key={p.id} value={p.id}>{p.nombre}</option>
+                            ))}
+                        </select>
+                    </label>      
+                    
+                    <label>
+                        Empresas (Autogenerado):
+                        <select multiple disabled value={empresasUnicasForm.map(e => e.id)}>
+                            {empresasUnicasForm.map(e => (
+                                <option key={e.id} value={e.id}>{e.nombre}</option>
+                            ))}
+                        </select>
+                    </label>      
+                    
                     <label>
                         Estado:
                         <select 
@@ -235,10 +298,11 @@ export default function AuxiliaresVista() {
                         </select>
                     </label>                       
                 </div>
+
                 <div className={styles.dialog_botones}>
                     <div className={styles.botones_guardar_cancelar}>
-                        <button onClick={cerrarModal} style={{ color: 'gray', border: '1px solid gray' }}>Cancelar</button>
-                        <button onClick={handleGuardar} style={{ backgroundColor: '#2563eb', color: 'white' }}>Guardar</button>
+                        <button onClick={cerrarModal} style={{color: 'gray', border: '1px solid gray'}}>Cancelar</button>
+                        <button onClick={handleGuardar} style={{backgroundColor: '#2563eb', color: 'white'}}>Guardar</button>
                     </div>
                     {modalMode === 'edit' && (
                         <div className={styles.botones_borrar}>
@@ -250,19 +314,18 @@ export default function AuxiliaresVista() {
                 </div>
             </dialog>
 
-            {/* PANTALLA PRINCIPAL */}
             <div className={styles.vista_completa}>
                 <div className={styles.vista_volver}>
-                    <p onClick={() => router.push('/prologix_admin/usuarios_y_permisos')} style={{ cursor: 'pointer' }}>{'< '}Volver</p>
+                    <p onClick={() => router.push('/prologix_admin/usuarios_y_permisos')} style={{cursor: 'pointer'}}>{'< '}Volver</p>
                 </div>
                 <div className={styles.vista_encabezado}>
                     <div className={styles.encabezado_titulo}>
-                        <h1>Auxiliares administrativos</h1>
-                        <p>Gestión de registros y facturación</p>
+                        <h1>Clientes</h1> {/* <--- CAMBIO: Título actualizado */}
+                        <p>Administra clientes registrados.</p> {/* <--- CAMBIO: Subtítulo actualizado */}
                     </div>
                     <div className={styles.encabezado_boton}>
                         <button onClick={abrirModalCrear}>
-                            <FaPlus style={{ marginRight: '2%' }} />
+                            <FaPlus style={{marginRight: '2%'}} />
                             Añadir registro
                         </button>
                     </div>
@@ -281,8 +344,10 @@ export default function AuxiliaresVista() {
                         <thead>
                             <tr>
                                 <td>Usuario</td>
+                                <td>Empresas</td>
+                                <td>Proyectos</td>
                                 <td>Estado</td>
-                                <td>Fecha ingreso</td>                                
+                                <td>Fecha ingreso</td>                               
                             </tr>
                         </thead>
                         <tbody>
@@ -294,10 +359,20 @@ export default function AuxiliaresVista() {
                                     <tr 
                                         key={obj.id || index} 
                                         onClick={() => abrirModalEditar(obj)} 
-                                        style={{ cursor: 'pointer' }} 
+                                        style={{cursor: 'pointer'}}
                                         title="Haz clic para editar"
                                     >
-                                        <td>{obj.username || obj.email || `Auxiliar ${obj.id}`}</td>
+                                        <td>{obj.username || obj.email || `Cliente ${obj.id}`}</td> {/* <--- CAMBIO: Renderiza 'Cliente' en lugar de 'Consultor' */}
+                                        <td>
+                                            {obj.empresas_nombres && obj.empresas_nombres.length > 0 
+                                                ? obj.empresas_nombres.join(', ') 
+                                                : 'Sin empresas'}
+                                        </td>
+                                        <td>
+                                            {obj.proyectos_nombres && obj.proyectos_nombres.length > 0 
+                                                ? obj.proyectos_nombres.join(', ') 
+                                                : 'Sin proyectos asignados'}
+                                        </td>
                                         <td>
                                             <span className={isActive ? styles.activo : styles.inactivo}>
                                                 {isActive ? 'Activo' : 'Inactivo'}

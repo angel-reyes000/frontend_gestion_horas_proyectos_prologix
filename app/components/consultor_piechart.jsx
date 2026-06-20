@@ -3,7 +3,7 @@
 import ReactECharts from 'echarts-for-react';
 import { useMemo } from 'react';
 
-export default function GraficaHorasProyectosSemana({ datos = [], semana, semanaFiltro }) {
+export default function PieChart({ datos = [], semana, semanaFiltro }) {
     
     // Agrupar los datos dinámicamente y calcular totales
     const { chartData, totalHoras } = useMemo(() => {
