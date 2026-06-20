@@ -421,15 +421,6 @@ export default function PrologixConsultor () {
                         </div>
                     </div>
                     <div className={styles.recuadros}>
-                        <div className={styles.recuadros_icono} style={{backgroundColor: 'rgb(255, 223, 147)'}}>
-                            <FaArrowTrendUp size={30} style={{color: 'rgb(255, 128, 37)'}}/>
-                        </div>
-                        <div className={styles.recuadros_texto}>
-                            <p>Promedio diario</p>
-                            <h2>{promedioDiario}</h2>
-                        </div>
-                    </div>
-                    <div className={styles.recuadros}>
                         <div className={styles.recuadros_icono} style={{backgroundColor: 'rgb(186, 191, 255)'}}>
                             <FaBorderAll size={30} style={{color: 'rgb(37, 52, 255)'}}/>
                         </div>

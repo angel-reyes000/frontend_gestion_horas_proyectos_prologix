@@ -154,7 +154,7 @@ export default function PrologixCliente () {
                 </div>
 
                 <div className={styles.vista_consultor_recuadros}>
-                    <div className={styles.recuadros} style={{width: '49.7%'}}>
+                    <div className={styles.recuadros}>
                         <div className={styles.recuadros_icono} style={{backgroundColor: 'rgb(219, 199, 255)'}}>
                             <FaClock size={30} style={{color: 'rgb(166, 118, 255)'}}/>
                         </div>
