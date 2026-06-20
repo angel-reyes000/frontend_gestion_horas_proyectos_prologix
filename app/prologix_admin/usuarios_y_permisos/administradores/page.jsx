@@ -5,7 +5,7 @@ import { FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 
-export default function AuxiliaresVista() {
+export default function Administradores() {
     const router = useRouter();
     
     // 1. Estado para validar la autorización
@@ -15,10 +15,8 @@ export default function AuxiliaresVista() {
     useEffect(() => {
         const rol = localStorage.getItem('rol_usuario');
         if (rol !== 'administrador') {
-            // Si no es admin, lo redirigimos al login
             router.replace('/login');
         } else {
-            // Si es admin, le permitimos ver la pantalla
             setAutorizado(true);
         }
     }, [router]);
@@ -32,8 +30,8 @@ export default function AuxiliaresVista() {
     const [modalMode, setModalMode] = useState('create');
     const [formData, setFormData] = useState({
         id: null,
-        nombre: '', // <--- CAMBIO: Añadido para el control del input
-        email: '',  // <--- CAMBIO: Añadido para el control del input
+        nombre: '', 
+        email: '',  
         username: '',
         password: '',
         is_active: true
@@ -48,8 +46,7 @@ export default function AuxiliaresVista() {
     // 1. Obtener Datos Iniciales
     const fetchData = async () => {
         try {
-            // Cambiado al grupo 'auxiliar'
-            const grupo = 'auxiliar'; 
+            const grupo = 'administrador';
             const resUsers = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users?grupo=${grupo}`, {
                 method: 'GET',
                 headers: { Authorization: `Bearer ${token}` }
@@ -62,18 +59,22 @@ export default function AuxiliaresVista() {
     };
 
     useEffect(() => {
-        // Solo llamamos a la API si el usuario está autorizado
         if (autorizado) {
             fetchData();
         }
-    }, [autorizado]);
+    }, [autorizado]); 
 
     // 2. Filtro de Búsqueda
     const filteredData = data.filter((obj) => {
         const termino = search.toLowerCase();
         
-        const usuarioStr = (obj.username || obj.email || `Auxiliar ${obj.id}`).toLowerCase();
+        // Usuario
+        const usuarioStr = (obj.username || obj.email || `Administrador ${obj.id}`).toLowerCase();
+            
+        // Estado
         const estadoStr = obj.is_active ? 'activo' : 'inactivo';
+        
+        // Fecha de ingreso
         const fechaStr = obj.date_joined ? obj.date_joined.split('T')[0] : 'sin fecha';
 
         return usuarioStr.includes(termino) || 
@@ -84,7 +85,6 @@ export default function AuxiliaresVista() {
     // 3. Manejo del Formulario y Modal
     const abrirModalCrear = () => {
         setModalMode('create');
-        // <--- CAMBIO: Se limpian nombre y email al crear
         setFormData({ id: null, nombre: '', email: '', username: '', password: '', is_active: true });
         setIsOpen(true); 
         dialogRef.current?.showModal();
@@ -92,10 +92,11 @@ export default function AuxiliaresVista() {
 
     const abrirModalEditar = (user) => {
         setModalMode('edit');
+        
         setFormData({
             id: user.id,
-            nombre: user.first_name || user.nombre || '', // <--- CAMBIO: Obtener nombre del backend
-            email: user.email || '',                      // <--- CAMBIO: Obtener email del backend
+            nombre: user.first_name || user.nombre || '', 
+            email: user.email || '',                      
             username: user.username,
             password: '', 
             is_active: user.is_active
@@ -120,12 +121,14 @@ export default function AuxiliaresVista() {
             const method = modalMode === 'create' ? 'POST' : 'PUT'; 
 
             const payload = {
-                first_name: formData.nombre, // <--- CAMBIO: Se envía el nombre
-                nombre: formData.nombre,     // <--- CAMBIO: Se envía el nombre
-                email: formData.email,       // <--- CAMBIO: Se envía el email
+                first_name: formData.nombre, 
+                nombre: formData.nombre,     
+                email: formData.email,       
                 username: formData.username,
                 is_active: formData.is_active,
-                grupos: ['auxiliar'] // Asignando el grupo 'auxiliar'
+                is_superuser: true, 
+                is_staff: true, // <--- AQUÍ SE AGREGA EL CAMPO
+                grupos: ['administrador']
             };
 
             if (formData.password) payload.password = formData.password;
@@ -172,7 +175,6 @@ export default function AuxiliaresVista() {
 
     return (
         <>
-            {/* MODAL */}
             <dialog 
                 ref={dialogRef} 
                 className={styles.dialog} 
@@ -189,7 +191,6 @@ export default function AuxiliaresVista() {
                 </div>                  
                 
                 <div className={styles.dialog_inputs}>
-                    {/* <--- CAMBIO: Inputs controlados de nombre y email ---> */}
                     <label>
                         Nombre:
                         <input 
@@ -206,7 +207,7 @@ export default function AuxiliaresVista() {
                             value={formData.email}
                             onChange={(e) => setFormData({...formData, email: e.target.value})}
                         />
-                    </label>
+                    </label>  
                     <label>
                         Usuario:
                         <input 
@@ -218,12 +219,13 @@ export default function AuxiliaresVista() {
                     <label>
                         Contraseña:
                         <input 
-                            type="password" 
+                            type="password"
                             placeholder={modalMode === 'edit' ? "Dejar en blanco para no cambiar..." : "Contraseña..."} 
                             value={formData.password}
                             onChange={(e) => setFormData({...formData, password: e.target.value})}
                         />
-                    </label>                                          
+                    </label>
+                    
                     <label>
                         Estado:
                         <select 
@@ -235,10 +237,11 @@ export default function AuxiliaresVista() {
                         </select>
                     </label>                       
                 </div>
+
                 <div className={styles.dialog_botones}>
                     <div className={styles.botones_guardar_cancelar}>
-                        <button onClick={cerrarModal} style={{ color: 'gray', border: '1px solid gray' }}>Cancelar</button>
-                        <button onClick={handleGuardar} style={{ backgroundColor: '#2563eb', color: 'white' }}>Guardar</button>
+                        <button onClick={cerrarModal} style={{color: 'gray', border: '1px solid gray'}}>Cancelar</button>
+                        <button onClick={handleGuardar} style={{backgroundColor: '#2563eb', color: 'white'}}>Guardar</button>
                     </div>
                     {modalMode === 'edit' && (
                         <div className={styles.botones_borrar}>
@@ -250,19 +253,18 @@ export default function AuxiliaresVista() {
                 </div>
             </dialog>
 
-            {/* PANTALLA PRINCIPAL */}
             <div className={styles.vista_completa}>
                 <div className={styles.vista_volver}>
-                    <p onClick={() => router.push('/prologix_admin/usuarios_y_permisos')} style={{ cursor: 'pointer' }}>{'< '}Volver</p>
+                    <p onClick={() => router.push('/prologix_admin/usuarios_y_permisos')} style={{cursor: 'pointer'}}>{'< '}Volver</p>
                 </div>
                 <div className={styles.vista_encabezado}>
                     <div className={styles.encabezado_titulo}>
-                        <h1>Auxiliares administrativos</h1>
-                        <p>Gestión de registros y facturación</p>
+                        <h1>Administradores</h1>
+                        <p>Administra administradores registrados.</p>
                     </div>
                     <div className={styles.encabezado_boton}>
                         <button onClick={abrirModalCrear}>
-                            <FaPlus style={{ marginRight: '2%' }} />
+                            <FaPlus style={{marginRight: '2%'}} />
                             Añadir registro
                         </button>
                     </div>
@@ -294,10 +296,10 @@ export default function AuxiliaresVista() {
                                     <tr 
                                         key={obj.id || index} 
                                         onClick={() => abrirModalEditar(obj)} 
-                                        style={{ cursor: 'pointer' }} 
+                                        style={{cursor: 'pointer'}}
                                         title="Haz clic para editar"
                                     >
-                                        <td>{obj.username || obj.email || `Auxiliar ${obj.id}`}</td>
+                                        <td>{obj.username || obj.email || `Administrador ${obj.id}`}</td>
                                         <td>
                                             <span className={isActive ? styles.activo : styles.inactivo}>
                                                 {isActive ? 'Activo' : 'Inactivo'}

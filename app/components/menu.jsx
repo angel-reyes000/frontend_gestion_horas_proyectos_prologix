@@ -10,6 +10,20 @@ import { useRouter } from 'next/navigation';
 export default function Menu () {
     const router = useRouter(); 
 
+    function cerrar_sesion () {
+        const cerrar = confirm("Estas seguro de cerrar sesion?");
+
+        if (cerrar) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('access');
+            localStorage.removeItem('refresh');
+            localStorage.removeItem('rol_usuario');
+            router.push('/login')
+        } else {
+            console.log("Manteniendo la misma sesion.");
+        }
+    }
+
     return (
         <>  
             <div className={styles.menu_fake}>
@@ -26,7 +40,7 @@ export default function Menu () {
                     </ul>
                 </div>
                 <div className={styles.menu_cerrar_sesion}>
-                    <div className={styles.cerrar_sesion}>
+                    <div onClick={() => cerrar_sesion()} className={styles.cerrar_sesion}>
                         <FaSignOutAlt size={40} style={{color: 'white'}}/>
                         <h2>Cerrar sesion</h2>
                     </div>                    

@@ -6,7 +6,7 @@ import { FaPlus, FaTrash } from "react-icons/fa";
 import Image from 'next/image';
 import Logo from '../../public/logo.png';
 import GraficaHorasSemana from '../components/consultor_grafica_horas_semana';
-import GraficaHorasProyectosSemana from '../components/consultor_grafica_horas_proyectos_semana';
+import PieChart from '../components/consultor_piechart';
 import { useEffect, useState, useRef } from 'react';
 
 export default function PrologixConsultor () {
@@ -375,33 +375,38 @@ export default function PrologixConsultor () {
                     </div>
                     <div className={styles.encabezado_imagen}>
                         <div className={styles.encabezado_select}>
-                            <Image src={logoEmpresa || Logo} width={50} height={50} alt='logo de la empresa' unoptimized={logoEmpresa ? true : false}/>
-                            <select value={proyectoFiltro} onChange={(e) => {
-                                setProyectoFiltro(e.target.value);
-                                if (e.target.value === '') {
-                                    setLogoEmpresa(null);
-                                } else {
-                                    const proyectoSeleccionado = selectProyectos.find(p => p.id.toString() === e.target.value);
-                                    if (proyectoSeleccionado && proyectoSeleccionado.empresas) {
-                                        if (proyectoSeleccionado.empresas.logo) {
-                                            const pathLogo = proyectoSeleccionado.empresas.logo;
-                                            const urlBackend = `http://localhost:8000${pathLogo.startsWith('/') ? '' : '/'}${pathLogo}`;
-                                            setLogoEmpresa(urlBackend);
+                            <label>
+                                Mostrar por:
+                                <select value={proyectoFiltro} onChange={(e) => {
+                                    setProyectoFiltro(e.target.value);
+                                    if (e.target.value === '') {
+                                        setLogoEmpresa(null);
+                                    } else {
+                                        const proyectoSeleccionado = selectProyectos.find(p => p.id.toString() === e.target.value);
+                                        if (proyectoSeleccionado && proyectoSeleccionado.empresas) {
+                                            if (proyectoSeleccionado.empresas.logo) {
+                                                const pathLogo = proyectoSeleccionado.empresas.logo;
+                                                const urlBackend = `http://localhost:8000${pathLogo.startsWith('/') ? '' : '/'}${pathLogo}`;
+                                                setLogoEmpresa(urlBackend);
+                                            } else {
+                                                setLogoEmpresa(null);
+                                            }
                                         } else {
                                             setLogoEmpresa(null);
                                         }
-                                    } else {
-                                        setLogoEmpresa(null);
-                                    }
-                                }   
-                            }}>
-                                <option value=''>Todos los Proyectos</option>
-                                {Array.isArray(selectProyectos) && selectProyectos.map(proj => (
-                                    <option key={proj.id} value={proj.id}>{proj.nombre}</option>
-                                ))}
-                            </select>
+                                    }   
+                                }}>
+                                    <option value=''>Todos los Proyectos</option>
+                                    {Array.isArray(selectProyectos) && selectProyectos.map(proj => (
+                                        <option key={proj.id} value={proj.id}>{proj.nombre}</option>
+                                    ))}
+                                </select>
+                            </label>
                         </div>
-                        <Image src={Logo} width={200} height={200} alt='logo de la empresa'/>
+                        <div className={styles.encabezado_logos}>
+                            <Image src={logoEmpresa || Logo} width={200} height={200} alt='logo de la empresa' unoptimized={logoEmpresa ? true : false}/>
+                            <Image src={Logo} width={120} height={120} alt='logo de la empresa'/>
+                        </div>                        
                     </div>
                 </div>
 
@@ -444,7 +449,7 @@ export default function PrologixConsultor () {
                         />
                     </div>
                     <div className={styles.graficas_pastel}>
-                        <GraficaHorasProyectosSemana 
+                        <PieChart 
                             datos={datosFiltrados} 
                             semana={semanaKPI} 
                             semanaFiltro={semanaFiltro} 

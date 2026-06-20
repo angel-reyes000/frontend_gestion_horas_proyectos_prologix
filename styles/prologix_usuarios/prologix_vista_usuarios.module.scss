@@ -17,32 +17,60 @@
 
 .encabezado_imagen {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     grid-template-columns: 1fr 1fr;
     align-items: center;
     justify-content: space-between;
-    width: 40%;
+    width: 30%;
     padding: 0.5% 1% 0.5% 1%;
     background-color: white;
     border-radius: 10px;
 }
-
-.encabezado_select {
+ 
+.encabezado_logos {
     display: flex;
     align-items: center;
-    height: 60%;
-    gap: 3%;
+    justify-content: space-around;
+    height: auto;
+    width: 100%;
+    gap: 0%;
+
+    img {
+        max-height: 60px;
+        object-fit: contain;
+        width: auto;
+
+    }
+
+}
+
+.encabezado_select {
+    width: 100%;
+    padding-bottom: 2%;
+    height: 100%;
+
+    label {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-around;
+        font-size: 1rem;
+        font-weight: 600;
+    }
 
     select {
+        width: 70%;
         border: 1px solid rgb(206, 206, 206);
         border-radius: 5px;
         height: 100%;
+        padding: 1%;
+        font-size: 0.9rem;
+        font-weight: 600;
     }
 
     select:focus {
         outline: 1px solid rgb(143, 227, 255);
     }
-
 }
 
 .encabezado_titulo {

@@ -33,7 +33,7 @@ export default function Login(){
             const access = data.access;
             const refresh = data.refresh;
 
-            if (localStorage.getItem("access") || localStorage.getItem("access")) {
+            if (localStorage.getItem("access") || localStorage.getItem("refresh")) {
                 localStorage.removeItem("access");
                 localStorage.removeItem("refresh");
             }
@@ -56,6 +56,10 @@ export default function Login(){
                     // NUEVO: Guardamos el rol
                     localStorage.setItem("rol_usuario", "auxiliar"); 
                     router.push('/prologix_auxiliar')
+
+                } else if (data.groups.includes("cliente")) {
+                    localStorage.setItem("rol_usuario", "cliente"); 
+                    router.push('/prologix_cliente')
                 }
             } else {
                 console.log("Acceso invalido")
@@ -97,9 +101,9 @@ export default function Login(){
                 <div className={styles.form_button}>
                     <button type='submit'>Iniciar sesion</button>
                 </div>
-            </form>                   
+            </form>                  
             <button onClick={() => console.log(`Access: ${localStorage.getItem('access')} refresh: ${localStorage.getItem('refresh')}`)}>Data</button>
         </div>
         </>
     )
-    }
+}

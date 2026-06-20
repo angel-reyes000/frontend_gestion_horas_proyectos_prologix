@@ -33,6 +33,8 @@ export default function Consultores() {
     const [modalMode, setModalMode] = useState('create');
     const [formData, setFormData] = useState({
         id: null,
+        nombre: '', // <--- CAMBIO: Agregado para el control del input
+        email: '',  // <--- CAMBIO: Agregado para el control del input
         username: '',
         password: '',
         proyectos: [], 
@@ -106,7 +108,8 @@ export default function Consultores() {
     // 3. Manejo del Formulario y Modal
     const abrirModalCrear = () => {
         setModalMode('create');
-        setFormData({ id: null, username: '', password: '', proyectos: [], is_active: true });
+        // <--- CAMBIO: Se limpian nombre y email al crear
+        setFormData({ id: null, nombre: '', email: '', username: '', password: '', proyectos: [], is_active: true });
         setIsOpen(true); 
         dialogRef.current?.showModal();
     };
@@ -126,6 +129,8 @@ export default function Consultores() {
 
         setFormData({
             id: user.id,
+            nombre: user.first_name || user.nombre || '', // <--- CAMBIO: Obtener nombre/first_name del backend
+            email: user.email || '',                      // <--- CAMBIO: Obtener email del backend
             username: user.username,
             password: '', 
             proyectos: user.proyectos_asignados || [], // Aquí se asigna el arreglo de IDs limpios
@@ -163,6 +168,9 @@ export default function Consultores() {
             const method = modalMode === 'create' ? 'POST' : 'PUT'; 
 
             const payload = {
+                first_name: formData.nombre, // <--- CAMBIO: Añadido para mandar nombre al backend (Django usa first_name por defecto)
+                nombre: formData.nombre,     // <--- CAMBIO: Se envía también como 'nombre' por seguridad dependiendo de tu API
+                email: formData.email,       // <--- CAMBIO: Añadido para mandar email
                 username: formData.username,
                 is_active: formData.is_active,
                 proyectos: formData.proyectos,
@@ -230,6 +238,24 @@ export default function Consultores() {
                 </div>                  
                 
                 <div className={styles.dialog_inputs}>
+                    {/* <--- CAMBIO: Inputs controlados de nombre y email ---> */}
+                    <label>
+                        Nombre:
+                        <input 
+                            placeholder="Nombre..." 
+                            value={formData.nombre}
+                            onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                        />
+                    </label>
+                    <label>
+                        Email:
+                        <input 
+                            type='email' 
+                            placeholder="Email..." 
+                            value={formData.email}
+                            onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        />
+                    </label>  
                     <label>
                         Usuario:
                         <input 
