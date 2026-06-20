@@ -41,7 +41,6 @@
         width: auto;
 
     }
-
 }
 
 .encabezado_select {
@@ -98,7 +97,7 @@
     gap: 2%;
     align-items: center;
     padding: 1% 2% 1% 2%;
-    width: 33%;
+    width: 49.7%;
     background-color: white;
     border: 1px solid rgb(206, 206, 206);
     border-radius: 10px;
@@ -135,7 +134,7 @@
 .vista_consultor_graficas {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1%;
+    gap: 0.7%;
 }
 
 .graficas_lineas {
@@ -262,6 +261,8 @@
         border-bottom: 1px solid black;
         padding: 0.5%;
         font-size: 0.9rem;
+        max-width: 500px;
+        white-space: wrap;
 
         p {
             background-color: #f1f5f9;
