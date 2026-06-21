@@ -4,22 +4,27 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import styles from '../../../../styles/prologix_usuarios/prologix_admin/vista_tablas.module.scss';
-import { FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaExclamationCircle } from 'react-icons/fa';
+
+// Importaciones de AOS requeridas
+import AOS from "aos";
+import "aos/dist/aos.css";
 
 export default function Proyectos() {
     const router = useRouter();
 
-    // 1. NUEVO: Estado para validar la autorización
     const [autorizado, setAutorizado] = useState(false);
 
-    // 2. NUEVO: Efecto para verificar el rol ANTES de mostrar la pantalla
+    // Inicializar AOS
+    useEffect(() => {
+        AOS.init({ duration: 300 });
+    }, []);
+
     useEffect(() => {
         const rol = localStorage.getItem('rol_usuario');
         if (rol !== 'administrador') {
-            // Si no es admin, lo redirigimos al login
             router.replace('/login');
         } else {
-            // Si es admin, le permitimos ver la pantalla
             setAutorizado(true);
         }
     }, [router]);
@@ -28,21 +33,65 @@ export default function Proyectos() {
     const [empresasList, setEmpresasList] = useState([]);
     const [filteredData, setFilteredData] = useState([]);
     
-    // Estados del formulario
     const [currentId, setCurrentId] = useState(null);
     const [empresa, setEmpresa] = useState('');
     const [proyecto, setProyecto] = useState('');
     const [descripcion, setDescripcion] = useState('');
 
-    // Estados de control
     const [isEditMode, setIsEditMode] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
     const refModal = useRef(null);
 
+    // NUEVO: Estado y Ref para las Alertas (Validaciones)
+    const alertModalRef = useRef(null);
+    const [alertConfig, setAlertConfig] = useState({
+        isOpen: false,
+        title: '',
+        message: '',
+        redirectMode: false
+    });
+
+    const showAlert = (title, message, redirectMode = false) => {
+        setAlertConfig({ isOpen: true, title, message, redirectMode });
+        setTimeout(() => alertModalRef.current?.showModal(), 10);
+    };
+
+    const closeAlert = () => {
+        alertModalRef.current?.close();
+        setAlertConfig({ ...alertConfig, isOpen: false });
+        if (alertConfig.redirectMode) {
+            localStorage.clear();
+            router.replace('/login');
+        }
+    };
+
+    // Manejo de errores genérico en las respuestas HTTP
+    const handleApiResponseErrors = async (response) => {
+        if (response.status === 401 || response.status === 403) {
+            showAlert("Sesión caducada", "Tu sesión ha expirado o el acceso es inválido. Por favor, inicia sesión nuevamente.", true);
+            return true;
+        }
+        if (response.status === 400) {
+            const textData = await response.text();
+            try {
+                const errorJson = JSON.parse(textData);
+                const errorMsg = Object.entries(errorJson).map(([k, v]) => `${k}: ${v}`).join(', ');
+                showAlert("Campos inválidos", `Error en los datos enviados: ${errorMsg}`);
+            } catch {
+                showAlert("Campos inválidos", "Verifica la información de los campos enviados e inténtalo de nuevo.");
+            }
+            return true;
+        }
+        if (!response.ok) {
+            showAlert("Error en la petición", `Ocurrió un problema inesperado (Código: ${response.status}). Inténtalo de nuevo más tarde.`);
+            return true;
+        }
+        return false;
+    };
+
     useEffect(() => {
-        // Solo llamamos a la API si el usuario está autorizado
         if (autorizado) {
             const token = localStorage.getItem('access');
             const headers = {
@@ -52,34 +101,30 @@ export default function Proyectos() {
 
             async function fetchData() {
                 try {
-                    // Fetch Proyectos
-                    const resProyectos = await fetch('http://localhost:8000/api/proyectos/', { headers });
-                    if (resProyectos.status === 200) {
-                        const datosProyectos = await resProyectos.json();
-                        setData(datosProyectos);
-                        setFilteredData(datosProyectos);
-                    } else {
-                        console.log("Error al cargar proyectos");
-                    }
+                    const resProyectos = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/proyectos/`, { headers });
+                    
+                    if (await handleApiResponseErrors(resProyectos)) return;
 
-                    // Fetch Empresas para el select
-                    const resEmpresas = await fetch('http://localhost:8000/api/empresas/', { headers });
-                    if (resEmpresas.status === 200) {
-                        const datosEmpresas = await resEmpresas.json();
-                        setEmpresasList(datosEmpresas);
-                    } else {
-                        console.log("Error al cargar empresas");
-                    }
+                    const datosProyectos = await resProyectos.json();
+                    setData(datosProyectos);
+                    setFilteredData(datosProyectos);
+
+                    const resEmpresas = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/empresas/`, { headers });
+                    
+                    if (await handleApiResponseErrors(resEmpresas)) return;
+
+                    const datosEmpresas = await resEmpresas.json();
+                    setEmpresasList(datosEmpresas);
+                    
                 } catch (error) {
-                    console.log("Error en fetch: ", error.message);
+                    showAlert("Error de red", "No se pudo conectar con el servidor. Verifica tu conexión a internet.");
                 }
             }
 
             fetchData();
         }
-    }, [autorizado]); // Dependencia agregada para que se ejecute al confirmar autorización
+    }, [autorizado]); 
 
-    // Filtro de búsqueda global
     useEffect(() => {
         const query = searchQuery.toLowerCase();
         const resultados = data.filter(item => 
@@ -118,37 +163,50 @@ export default function Proyectos() {
     };
 
     async function handleSave() {
-        // Validación: Que no se repita el nombre del proyecto
-        const nombreDuplicado = data.some(
-            item => item.nombre.toLowerCase() === proyecto.toLowerCase() && item.id !== currentId
-        );
-
-        if (nombreDuplicado) {
-            alert("Ya existe un proyecto registrado con ese nombre.");
+        // Validaciones del Frontend basadas en el modelo de Django
+        if (!empresa) {
+            showAlert("Campos faltantes", "Por favor, selecciona una empresa para el proyecto.");
             return;
         }
 
-        // Validación: Asegurarse de que se seleccionó una empresa
-        if (!empresa) {
-            alert("Por favor, selecciona una empresa.");
+        if (!proyecto || proyecto.trim() === '') {
+            showAlert("Campos faltantes", "El nombre del proyecto es obligatorio.");
+            return;
+        }
+
+        if (proyecto.length > 50) {
+            showAlert("Campos inválidos", `El nombre del proyecto no puede exceder los 50 caracteres. Actual: ${proyecto.length}`);
+            return;
+        }
+
+        if (!descripcion || descripcion.trim() === '') {
+            showAlert("Campos faltantes", "La descripción del proyecto es obligatoria.");
+            return;
+        }
+
+        const nombreDuplicado = data.some(
+            item => item.nombre.toLowerCase() === proyecto.trim().toLowerCase() && item.id !== currentId
+        );
+
+        if (nombreDuplicado) {
+            showAlert("Campos inválidos", "Ya existe un proyecto registrado con ese nombre.");
             return;
         }
 
         try {
             const token = localStorage.getItem('access');
             
-            // CORRECCIÓN: Cambiamos 'empresa_id' a 'empresas' para coincidir con tu modelo
             const payload = {
-                nombre: proyecto,
+                nombre: proyecto.trim(),
                 empresas: parseInt(empresa), 
-                descripcion: descripcion
+                descripcion: descripcion.trim()
             };
 
             if (isEditMode) {
-                payload.id = currentId; // Se envía el ID por body
+                payload.id = currentId;
             }
 
-            const response = await fetch('http://localhost:8000/api/proyectos/', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/proyectos/`, {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -157,28 +215,18 @@ export default function Proyectos() {
                 body: JSON.stringify(payload),
             });
 
-            if (response.ok || response.status === 201) {
-                const datosGuardados = await response.json();
-                if (isEditMode) {
-                    setData(data.map(item => item.id === currentId ? datosGuardados : item));
-                } else {
-                    setData([...data, datosGuardados]);
-                }
-                closeModal();
+            if (await handleApiResponseErrors(response)) return;
+
+            const datosGuardados = await response.json();
+            if (isEditMode) {
+                setData(data.map(item => item.id === currentId ? datosGuardados : item));
             } else {
-                console.log("No se pudo guardar el registro. Código de estado:", response.status);
-                
-                // Manejo seguro por si Django devuelve un HTML (Error 500) en lugar de JSON
-                const textData = await response.text();
-                try {
-                    const errorJson = JSON.parse(textData);
-                    console.error("Detalles del error (JSON):", errorJson);
-                } catch (e) {
-                    console.error("El servidor devolvió un error 500 (HTML). Revisa la terminal donde estás corriendo tu backend (Django) para ver la línea exacta que está fallando.");
-                }
+                setData([...data, datosGuardados]);
             }
+            closeModal();
+            
         } catch (error) {
-            console.log("Error de red o ejecución: ", error.message);
+            showAlert("Error de red", "No se pudo completar la operación debido a un problema de conexión.");
         }
     }
 
@@ -188,35 +236,50 @@ export default function Proyectos() {
 
         try {
             const token = localStorage.getItem('access');
-            const response = await fetch('http://localhost:8000/api/proyectos/', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/proyectos/`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({ id: currentId }), // Se envía el ID por body
+                body: JSON.stringify({ id: currentId }),
             });
 
-            if (response.ok) {
-                setData(data.filter(item => item.id !== currentId));
-                closeModal();
-            } else {
-                console.log("No se pudo eliminar el registro");
-            }
+            if (await handleApiResponseErrors(response)) return;
+
+            setData(data.filter(item => item.id !== currentId));
+            closeModal();
+            
         } catch (error) {
-            console.log("Error al eliminar: ", error.message);
+            showAlert("Error de red", "Ocurrió un error al intentar eliminar el registro.");
         }
     }
 
-    // 3. NUEVO: Si no está autorizado, devolvemos null para evitar parpadeos visuales
     if (!autorizado) {
         return null;
+    }
+
+    // Modal para mostrar errores
+    function modalAlert() {
+        return (
+            <dialog ref={alertModalRef} className={styles.dialog_alerta} style={{ display: alertConfig.isOpen ? 'block' : 'none' }}>
+                <div className={styles.alerta_contenido} data-aos="zoom-in">
+                    <div className={styles.alerta_icono}>
+                        <FaExclamationCircle size={50} color="#dc2626" />
+                    </div>
+                    <div className={styles.alerta_textos}>
+                        <h2>{alertConfig.title}</h2>
+                        <p>{alertConfig.message}</p>
+                    </div>
+                    <button className={styles.alerta_boton} onClick={closeAlert}>Aceptar</button>
+                </div>
+            </dialog>
+        );
     }
 
     function modalAdd() {
         return (
             <>
-                {/* Agregado display condicional para arreglar el error del modal flotante transparente */}
                 <dialog ref={refModal} className={styles.dialog} style={{ display: isModalOpen ? 'block' : 'none' }}>
                     <div className={styles.dialog_encabezado}>
                         <div className={styles.dialog_titulo}>
@@ -230,7 +293,7 @@ export default function Proyectos() {
                     <div className={styles.dialog_inputs}>
                         <label>
                             Nombre del proyecto:
-                            <input value={proyecto} onChange={(e) => setProyecto(e.target.value)} placeholder='Nombre del proyecto'/>
+                            <input value={proyecto} onChange={(e) => setProyecto(e.target.value)} placeholder='Nombre del proyecto' maxLength={50}/>
                         </label> 
                         <label>
                             Nombre de la empresa:
@@ -264,6 +327,7 @@ export default function Proyectos() {
 
     return (
         <>  
+            {modalAlert()}
             {modalAdd()}
             <div className={styles.vista_completa}>
                 <div className={styles.vista_volver}>

@@ -5,14 +5,16 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import BarChart from '../components/cliente_barchart';
-import { FaExclamationTriangle } from "react-icons/fa";
+import { FaExclamationTriangle, FaWifi, FaTimesCircle, FaLock } from "react-icons/fa";
 import { FaClock, FaArrowTrendUp, FaBorderAll } from "react-icons/fa6";
 import Logo from '../../public/logo.png';
 
+// Importaciones de AOS
+import AOS from "aos";
+import "aos/dist/aos.css";
+
 export default function PrologixCliente () {
     const [data, setData] = useState([]);
-    const refModalInvalidAccess = useRef(null);
-    const [invalidAccess, setInvalidAccess] = useState(false);
     const router = useRouter();
 
     // Estados para los filtros
@@ -20,9 +22,58 @@ export default function PrologixCliente () {
     const [selectedWeek, setSelectedWeek] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
 
+    // Estado unificado para validaciones y alertas
+    const refModalAlerta = useRef(null);
+    const [alertaInfo, setAlertaInfo] = useState({
+        mostrar: false,
+        titulo: '',
+        mensaje: '',
+        tipo: '',
+        icono: null
+    });
+
+    const mostrarAlerta = (titulo, mensaje, tipo, icono) => {
+        setAlertaInfo({ mostrar: true, titulo, mensaje, tipo, icono });
+        refModalAlerta.current?.showModal();
+    };
+
+    const cerrarAlerta = () => {
+        refModalAlerta.current?.close();
+        setAlertaInfo({ ...alertaInfo, mostrar: false });
+        // Si la sesión caducó, enviamos al login
+        if (alertaInfo.tipo === 'sesion_caducada' || alertaInfo.tipo === 'no_autenticado') {
+            router.push('/login');
+        }
+    };
+
+    // Función para procesar errores de validación de los modelos de Django desde el backend
+    const procesarErroresDjango = (errorData) => {
+        if (typeof errorData === 'string') return errorData;
+        let mensajes = [];
+        for (const campo in errorData) {
+            if (errorData.hasOwnProperty(campo)) {
+                const nombreCampo = campo === 'non_field_errors' ? 'Error general' : campo;
+                const detalleError = Array.isArray(errorData[campo]) ? errorData[campo].join(', ') : errorData[campo];
+                mensajes.push(`${nombreCampo}: ${detalleError}`);
+            }
+        }
+        return mensajes.length > 0 ? mensajes.join(' | ') : 'Error de validación en los campos proporcionados.';
+    };
+
     async function getData () {
         try {
             const token = localStorage.getItem('access');
+
+            // Validación de sesión/token faltante antes de hacer la petición
+            if (!token) {
+                mostrarAlerta(
+                    'Sesión no encontrada',
+                    'No se encontró una sesión activa o faltan campos de autenticación.',
+                    'no_autenticado',
+                    <FaLock size={50} style={{ color: '#eab308' }} />
+                );
+                return;
+            }
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/cliente/registros/`, {
                 method: 'GET',
@@ -31,9 +82,46 @@ export default function PrologixCliente () {
                 }
             });
 
-            if (response.status !== 200) {
-                setInvalidAccess(true);
-                refModalInvalidAccess.current?.showModal();
+            // Manejo de errores basado en el Status HTTP
+            if (!response.ok) {
+                let errorData = {};
+                try { errorData = await response.json(); } catch (e) { /* No es JSON */ }
+
+                switch (response.status) {
+                    case 401: // Sesión caducada / Token inválido
+                        mostrarAlerta(
+                            'Sesión caducada',
+                            'Tu sesión ha terminado. Por favor, inicia sesión nuevamente.',
+                            'sesion_caducada',
+                            <FaLock size={50} style={{ color: '#eab308' }} />
+                        );
+                        break;
+                    case 403: // Acceso inválido
+                        mostrarAlerta(
+                            'Acceso inválido',
+                            'No tienes permisos de cliente para ver esta información.',
+                            'acceso_invalido',
+                            <FaLock size={50} style={{ color: '#dc2626' }} />
+                        );
+                        break;
+                    case 400: // Bad Request (Errores de campos faltantes o inválidos desde el modelo de Django)
+                        const mensajeValidacion = procesarErroresDjango(errorData);
+                        mostrarAlerta(
+                            'Campos inválidos o faltantes',
+                            mensajeValidacion,
+                            'bad_request',
+                            <FaExclamationTriangle size={50} style={{ color: '#ea580c' }} />
+                        );
+                        break;
+                    default: // Error de petición / general
+                        mostrarAlerta(
+                            'Error en la petición',
+                            `Ocurrió un problema al procesar la solicitud (Código ${response.status}).`,
+                            'error_peticion',
+                            <FaTimesCircle size={50} style={{ color: '#dc2626' }} />
+                        );
+                        break;
+                }
                 return;
             }
 
@@ -41,23 +129,51 @@ export default function PrologixCliente () {
             setData(datos);
             
         } catch (error) {
-            console.log("Error al obtener registros de cliente: ", error.message);
+            // Manejo de error de red o error de servidor caído
+            if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+                mostrarAlerta(
+                    'Error de red',
+                    'No se pudo conectar con el servidor. Verifica tu conexión a internet.',
+                    'error_red',
+                    <FaWifi size={50} style={{ color: '#dc2626' }} />
+                );
+            } else {
+                mostrarAlerta(
+                    'Error general',
+                    `Ha ocurrido un error inesperado: ${error.message}`,
+                    'error_general',
+                    <FaExclamationTriangle size={50} style={{ color: '#dc2626' }} />
+                );
+            }
         }
     }
 
     useEffect(() => {
+        // Inicializar AOS para las animaciones del modal
+        AOS.init({ duration: 300, once: true });
         getData();
     }, []);
 
-    function modalInvalidAccess () {
-        return invalidAccess ? (
-            <dialog className={styles.modal} ref={refModalInvalidAccess}>
-                <FaExclamationTriangle size={100} style={{color: 'yellow'}}/>
-                <h1>Acceso inválido</h1>
-                <p>No tienes permisos de cliente para ver esta información.</p>
-                <button onClick={() => router.push('/login')}>Ir a iniciar sesión</button>
+    // Render del Modal de Validaciones
+    function renderModalAlerta() {
+        return (
+            <dialog className={styles.dialog_alerta} ref={refModalAlerta} onCancel={(e) => e.preventDefault()}>
+                {alertaInfo.mostrar && (
+                    <div className={styles.alerta_contenido} data-aos="zoom-in">
+                        <div className={styles.alerta_icono}>
+                            {alertaInfo.icono}
+                        </div>
+                        <div className={styles.alerta_textos}>
+                            <h2>{alertaInfo.titulo}</h2>
+                            <p>{alertaInfo.mensaje}</p>
+                        </div>
+                        <button className={styles.alerta_boton} onClick={cerrarAlerta}>
+                            {(alertaInfo.tipo === 'sesion_caducada' || alertaInfo.tipo === 'no_autenticado') ? 'Ir a iniciar sesión' : 'Entendido'}
+                        </button>
+                    </div>
+                )}
             </dialog>
-        ) : null;
+        );
     }
 
     // Extraer valores únicos para los selects (Proyectos y Semanas)
@@ -123,7 +239,7 @@ export default function PrologixCliente () {
 
     return (
         <>  
-            {modalInvalidAccess()}
+            {renderModalAlerta()}
 
             <div className={styles.vista_consultor}>
                 <div className={styles.vista_consultor_encabezado}>

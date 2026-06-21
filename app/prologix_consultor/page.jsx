@@ -1,15 +1,20 @@
 "use client"
 
 import styles from '../../styles/prologix_usuarios/prologix_vista_usuarios.module.scss';
-import { FaClock, FaArrowTrendUp, FaBorderAll } from "react-icons/fa6";
+import { FaClock, FaArrowTrendUp, FaBorderAll, FaExclamationTriangle } from "react-icons/fa";
 import { FaPlus, FaTrash } from "react-icons/fa";
 import Image from 'next/image';
 import Logo from '../../public/logo.png';
 import GraficaHorasSemana from '../components/consultor_grafica_horas_semana';
 import PieChart from '../components/consultor_piechart';
 import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import AOS from "aos";
+import "aos/dist/aos.css";
 
 export default function PrologixConsultor () {
+    const router = useRouter();
+
     const [data, setData] = useState([]);
     const [selectProyectos, setSelectProyectos] = useState([]);
     const [empresa, setEmpresa] = useState('');
@@ -17,45 +22,121 @@ export default function PrologixConsultor () {
     const [semana, setSemana] = useState('');
     const [horas, setHoras] = useState(0);
     const [descripcion, setDescripcion] = useState('');
-    const [fecha, setFecha] = useState(''); // <-- NUEVO ESTADO PARA FECHA
+    const [fecha, setFecha] = useState('');
     const [modalAbierto, setModalAbierto] = useState(false);
     const [registroEditando, setRegistroEditando] = useState(null);
     const [mensaje, setMensaje] = useState('');
     const [proyectoFiltro, setProyectoFiltro] = useState('');
     const [logoEmpresa, setLogoEmpresa] = useState(null);
     
-    // --- NUEVOS ESTADOS PARA LOS FILTROS ---
     const [semanaFiltro, setSemanaFiltro] = useState('');
     const [busqueda, setBusqueda] = useState('');
 
-    const refModalAdd = useRef(null)
+    // --- NUEVOS ESTADOS Y REFERENCIAS PARA ALERTAS ---
+    const [alertaModal, setAlertaModal] = useState({ abierto: false, titulo: '', mensaje: '', tipo: 'error', redirigir: false });
+    const refModalAdd = useRef(null);
+    const refAlerta = useRef(null);
+
+    // Inicializar AOS
+    useEffect(() => {
+        AOS.init({ duration: 500 });
+    }, []);
+
+    // Control del modal de alertas
+    useEffect(() => {
+        if (alertaModal.abierto && refAlerta.current && !refAlerta.current.open) {
+            refAlerta.current.showModal();
+        } else if (!alertaModal.abierto && refAlerta.current && refAlerta.current.open) {
+            refAlerta.current.close();
+        }
+    }, [alertaModal.abierto]);
+
+    const mostrarAlerta = (titulo, mensaje, tipo = 'error', redirigir = false) => {
+        setAlertaModal({ abierto: true, titulo, mensaje, tipo, redirigir });
+    };
+
+    const cerrarAlerta = () => {
+        setAlertaModal({ ...alertaModal, abierto: false });
+        if (alertaModal.redirigir) {
+            localStorage.removeItem('access');
+            router.push('/login');
+        }
+    };
+
+    const manejarErroresPeticion = async (response) => {
+        if (response.status === 401 || response.status === 403) {
+            mostrarAlerta('Sesión caducada', 'Tu sesión ha terminado o el acceso es inválido. Serás redirigido al inicio de sesión.', 'error', true);
+            return true;
+        }
+        if (!response.ok) {
+            let errorMsg = `Error en la petición HTTP (${response.status})`;
+            try {
+                const errorData = await response.json();
+                errorMsg = JSON.stringify(errorData);
+            } catch (e) {
+                const textData = await response.text();
+                errorMsg = textData.substring(0, 100);
+            }
+            mostrarAlerta('Error en la petición', `Detalles: ${errorMsg}`, 'error');
+            return true;
+        }
+        return false;
+    };
+
+    // Validaciones base de datos (Django Models)
+    const validarCampos = () => {
+        if (!proyecto || !horas || !descripcion || !fecha) {
+            mostrarAlerta('Campos faltantes', 'Por favor completa todos los campos (Proyecto, Empresa, Horas, Fecha, Descripción).', 'error');
+            return false;
+        }
+        const parsedHoras = parseFloat(horas);
+        if (isNaN(parsedHoras) || parsedHoras <= 0 || parsedHoras >= 100) {
+            mostrarAlerta('Campos inválidos', 'Las horas deben ser mayores a 0 y menores a 100 (máximo 4 dígitos).', 'error');
+            return false;
+        }
+        if (!/^\d+(\.\d{1,2})?$/.test(horas.toString())) {
+            mostrarAlerta('Campos inválidos', 'El formato de horas admite un máximo de 2 decimales.', 'error');
+            return false;
+        }
+        const proyectoSeleccionado = selectProyectos.find(p => p.nombre === proyecto);
+        if (!proyectoSeleccionado) {
+            mostrarAlerta('Campos inválidos', 'Selecciona un proyecto válido.', 'error');
+            return false;
+        }
+        return proyectoSeleccionado;
+    };
 
     useEffect(() => {
         const token = localStorage.getItem('access');
 
         if (!token) {
-            console.log('No hay token disponible');
+            mostrarAlerta('Acceso inválido', 'No hay un token de sesión disponible. Por favor, inicia sesión.', 'error', true);
             return;
         }
 
-        getDataRegistros()
+        getDataRegistros();
 
         async function getDataProyectos () {
-            const response = await fetch('http://localhost:8000/api/proyectos/', {
-                method: 'GET',
-                headers: {
-                    'content-type' : 'application/json',
-                    Authorization: `Bearer ${token}`
-                }
-            })
+            try {
+                const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/proyectos/`, {
+                    method: 'GET',
+                    headers: {
+                        'content-type' : 'application/json',
+                        Authorization: `Bearer ${token}`
+                    }
+                });
 
-            const datos = await response.json()
-            setSelectProyectos(datos);
+                if (await manejarErroresPeticion(response)) return;
+
+                const datos = await response.json();
+                setSelectProyectos(datos);
+            } catch (error) {
+                mostrarAlerta('Error de red', 'No se pudo conectar con el servidor para obtener los proyectos.', 'error');
+            }
         }
 
-        getDataProyectos()
-
-    }, [])
+        getDataProyectos();
+    }, []);
 
     useEffect(() => {
         if (proyecto && selectProyectos.length > 0) {
@@ -64,7 +145,7 @@ export default function PrologixConsultor () {
                 setEmpresa(proyectoSeleccionado.empresas.nombre);
             }
         }
-    }, [proyecto, selectProyectos])
+    }, [proyecto, selectProyectos]);
 
     useEffect(() => {
         if (modalAbierto && refModalAdd.current && !refModalAdd.current.open) {
@@ -73,38 +154,28 @@ export default function PrologixConsultor () {
     }, [modalAbierto]);
 
     async function postData() {
+        const proyectoSeleccionado = validarCampos();
+        if (!proyectoSeleccionado) return;
+
         const token = localStorage.getItem('access');
+        const datosEnvio = {
+            horas: parseFloat(horas),
+            proyecto_id: proyectoSeleccionado.id,
+            descripcion: descripcion,
+            fecha_actual: fecha
+        };
+
         try {
-            // <-- SE AGREGA VALIDACIÓN DE FECHA
-            if (!proyecto || !horas || !descripcion || !fecha) {
-                setMensaje('Por favor completa todos los campos');
-                return;
-            }
-
-            const proyectoSeleccionado = selectProyectos.find(p => p.nombre === proyecto);
-            
-            if (!proyectoSeleccionado) {
-                setMensaje('Selecciona un proyecto válido');
-                return;
-            }
-
-            const datosEnvio = {
-                horas: parseFloat(horas),
-                proyecto_id: proyectoSeleccionado.id,
-                descripcion: descripcion,
-                fecha_actual: fecha // <-- SE ENVÍA LA FECHA A DJANGO
-            };
-
-            const response = await fetch('http://localhost:8000/api/registros/', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/registros/`, {
                 method: 'POST',
                 headers: {
                     'content-type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify(datosEnvio)
-            })
+            });
 
-            const responseText = await response.text();
+            if (await manejarErroresPeticion(response)) return;
 
             if (response.status === 201) {
                 setMensaje('Registro creado exitosamente');
@@ -112,53 +183,41 @@ export default function PrologixConsultor () {
                 setModalAbierto(false); 
                 getDataRegistros();
             } else {
-                try {
-                    const error = JSON.parse(responseText);
-                    setMensaje('Error al crear registro: ' + JSON.stringify(error));
-                } catch {
-                    setMensaje('Error del servidor: ' + responseText.substring(0, 100));
-                }
+                mostrarAlerta('Error general', `No se pudo crear el registro. Código HTTP: ${response.status}`, 'error');
             }
-
         } catch (error) {
-            console.log("Error al hacer post en registros", error)
-            setMensaje('Error: ' + error.message);
+            mostrarAlerta('Error de red', `Hubo un problema de conexión: ${error.message}`, 'error');
         }
     }
 
     async function putData() {
+        if (!semana) {
+            mostrarAlerta('Campos faltantes', 'La semana es obligatoria para actualizar.', 'error');
+            return;
+        }
+        
+        const proyectoSeleccionado = validarCampos();
+        if (!proyectoSeleccionado) return;
+
         const token = localStorage.getItem('access');
+        const datosEnvio = {
+            horas: parseFloat(horas),
+            proyecto_id: proyectoSeleccionado.id,
+            descripcion: descripcion,
+            fecha_actual: fecha
+        };
+
         try {
-            // <-- SE AGREGA VALIDACIÓN DE FECHA
-            if (!proyecto || !semana || !horas || !descripcion || !fecha) {
-                setMensaje('Por favor completa todos los campos');
-                return;
-            }
-
-            const proyectoSeleccionado = selectProyectos.find(p => p.nombre === proyecto);
-            
-            if (!proyectoSeleccionado) {
-                setMensaje('Selecciona un proyecto válido');
-                return;
-            }
-
-            const datosEnvio = {
-                horas: parseFloat(horas),
-                proyecto_id: proyectoSeleccionado.id,
-                descripcion: descripcion,
-                fecha_actual: fecha // <-- SE ENVÍA LA FECHA A DJANGO
-            };
-
-            const response = await fetch(`http://localhost:8000/api/registros/${registroEditando.id}/`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/registros/${registroEditando.id}/`, {
                 method: 'PUT',
                 headers: {
                     'content-type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify(datosEnvio)
-            })
+            });
 
-            const responseText = await response.text();
+            if (await manejarErroresPeticion(response)) return;
 
             if (response.status === 200) {
                 setMensaje('Registro actualizado exitosamente');
@@ -166,17 +225,10 @@ export default function PrologixConsultor () {
                 setModalAbierto(false); 
                 getDataRegistros();
             } else {
-                try {
-                    const error = JSON.parse(responseText);
-                    setMensaje('Error al actualizar registro: ' + JSON.stringify(error));
-                } catch {
-                    setMensaje('Error del servidor: ' + responseText.substring(0, 100));
-                }
+                mostrarAlerta('Error general', `No se pudo actualizar el registro. Código HTTP: ${response.status}`, 'error');
             }
-
         } catch (error) {
-            console.log("Error al hacer put en registros", error)
-            setMensaje('Error: ' + error.message);
+            mostrarAlerta('Error de red', `Hubo un problema de conexión al actualizar: ${error.message}`, 'error');
         }
     }
 
@@ -188,12 +240,14 @@ export default function PrologixConsultor () {
 
         const token = localStorage.getItem('access');
         try {
-            const response = await fetch(`http://localhost:8000/api/registros/${registroEditando.id}/`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/registros/${registroEditando.id}/`, {
                 method: 'DELETE',
                 headers: {
                     Authorization: `Bearer ${token}`,
                 }
             });
+
+            if (await manejarErroresPeticion(response)) return;
 
             if (response.status === 204 || response.status === 200) {
                 setMensaje('Registro eliminado exitosamente');
@@ -201,11 +255,10 @@ export default function PrologixConsultor () {
                 setModalAbierto(false); 
                 getDataRegistros();
             } else {
-                setMensaje('Error al eliminar registro');
+                mostrarAlerta('Error al eliminar', `Ocurrió un error inesperado al intentar borrar el registro (${response.status})`, 'error');
             }
         } catch (error) {
-            console.log("Error al hacer delete en registros", error);
-            setMensaje('Error: ' + error.message);
+            mostrarAlerta('Error de red', `No se pudo conectar al servidor para eliminar: ${error.message}`, 'error');
         }
     }
 
@@ -215,7 +268,7 @@ export default function PrologixConsultor () {
         setSemana('');
         setHoras(0);
         setDescripcion('');
-        setFecha(''); // <-- SE RESETEA LA FECHA
+        setFecha(''); 
         setRegistroEditando(null);
         setMensaje('');
     }
@@ -227,7 +280,6 @@ export default function PrologixConsultor () {
         setSemana(registro.semana.toString());
         setHoras(registro.horas.toString());
         setDescripcion(registro.descripcion);
-        // <-- SE CARGA LA FECHA AL EDITAR (Toma fecha_actual o fecha según el serializer de Django)
         setFecha(registro.fecha_actual || ''); 
         setModalAbierto(true);
     }
@@ -235,18 +287,20 @@ export default function PrologixConsultor () {
     async function getDataRegistros() {
         const token = localStorage.getItem('access');
         try {
-            const response = await fetch('http://localhost:8000/api/registros/', {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/registros/`, {
                 method: 'GET',
                 headers: {
                     'content-type' : 'application/json',
                     Authorization: `Bearer ${token}`
                 }
-            })
+            });
 
-            const datos = await response.json()
-            setData(datos)
+            if (await manejarErroresPeticion(response)) return;
+
+            const datos = await response.json();
+            setData(datos);
         } catch (error) {
-            console.log("Error al obtener registros", error)
+            mostrarAlerta('Error de red', `No se pudieron cargar los registros: ${error.message}`, 'error');
         }
     }
 
@@ -286,11 +340,27 @@ export default function PrologixConsultor () {
         .reduce((acumulador, actual) => acumulador + parseFloat(actual.horas || 0), 0);
 
     const promedioDiario = (horasEstaSemana / 5).toFixed(2);
-
     const totalProyectosActivos = new Set(datosFiltrados.map(obj => obj.proyecto?.id)).size;
 
     return (
         <>
+            {/* Modal para Errores / Validaciones usando 'styles.' */}
+            <dialog ref={refAlerta} className={styles.dialog_alerta}>
+                <div className={styles.alerta_contenido} data-aos="zoom-in">
+                    <div className={styles.alerta_icono}>
+                        <FaExclamationTriangle size={45} color={alertaModal.tipo === 'error' ? '#ef4444' : '#f59e0b'} />
+                    </div>
+                    <div className={styles.alerta_textos}>
+                        <h2>{alertaModal.titulo}</h2>
+                        <p>{alertaModal.mensaje}</p>
+                    </div>
+                    <button className={styles.alerta_boton} onClick={cerrarAlerta}>
+                        Entendido
+                    </button>
+                </div>
+            </dialog>
+
+            {/* Modal para Agregar/Editar Registro */}
             {modalAbierto && (
                 <dialog 
                     ref={refModalAdd} 
@@ -303,11 +373,11 @@ export default function PrologixConsultor () {
                     <div className={styles.modal_header}>
                         <h1>{registroEditando ? 'Editar registro' : 'Nuevo registro'}</h1>
                         <button onClick={() => {
-                            setModalAbierto(false)
-                            resetearFormulario()
+                            setModalAbierto(false);
+                            resetearFormulario();
                         }}>x</button>
                     </div>
-                    {mensaje && <div style={{padding: '10px', margin: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px'}}>{mensaje}</div>}
+                    {mensaje && <div style={{padding: '10px', margin: '10px', backgroundColor: '#e2f5e8', borderRadius: '4px', color: '#145c32'}}>{mensaje}</div>}
                     <div className={styles.modal_inputs}>
                         <label>
                             Proyecto                            
@@ -328,11 +398,10 @@ export default function PrologixConsultor () {
                         </label>
                         <label>
                             Horas
-                            <input value={horas} onChange={(e) => setHoras(e.target.value)} />
-                        </label>    
+                            <input type="number" step="0.01" min="0" max="99.99" value={horas} onChange={(e) => setHoras(e.target.value)} />
+                        </label>   
                         <label>
                             Fecha
-                            {/* <-- SE VINCULA EL INPUT DATE AL ESTADO DE REACT */}
                             <input type='date' value={fecha} onChange={(e) => setFecha(e.target.value)} />
                         </label>                      
                     </div>
@@ -386,7 +455,7 @@ export default function PrologixConsultor () {
                                         if (proyectoSeleccionado && proyectoSeleccionado.empresas) {
                                             if (proyectoSeleccionado.empresas.logo) {
                                                 const pathLogo = proyectoSeleccionado.empresas.logo;
-                                                const urlBackend = `http://localhost:8000${pathLogo.startsWith('/') ? '' : '/'}${pathLogo}`;
+                                                const urlBackend = `${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}${pathLogo.startsWith('/') ? '' : '/'}${pathLogo}`;
                                                 setLogoEmpresa(urlBackend);
                                             } else {
                                                 setLogoEmpresa(null);
@@ -508,7 +577,6 @@ export default function PrologixConsultor () {
                                         <td style={{fontWeight: '600'}}>{obj.proyecto?.nombre}</td>
                                         <td>{obj.proyecto?.empresas?.nombre}</td>
                                         <td>{obj.semana}</td>
-                                        {/* LA TABLA YA ESTÁ RENDERIZANDO obj.fecha_actual AQUÍ */}
                                         <td>{obj.fecha_actual}</td>
                                         <td style={{fontWeight: '600'}}>{obj.horas}</td>
                                         <td>{obj.descripcion}</td>

@@ -4,17 +4,35 @@ import styles from '../../styles/login/login.module.scss';
 import Image from 'next/image';
 import Logo from '../../public/logo.png';
 import { FaUser, FaLock } from 'react-icons/fa';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { ref } from 'node:process';
 
 export default function Login(){
     const [usuario, setUsuario] = useState('');
     const [contraseña, setContraseña] = useState('');
     const [invalidAccess, setInvalidAccess] = useState(false);
+    const [iniciandoSesion, setIniciandoSesion] = useState(false);
+
+    const refUsuario = useRef(null);
+    const refContenedorUsuario = useRef(null);
+    const refContraseña = useRef(null);
+    const refContenedorContraseña = useRef(null);
+
     const router = useRouter();
 
     async function getUsers (e) {
         e.preventDefault();
+        setInvalidAccess(false)
+
+        refUsuario.current.disabled = true;
+        refContraseña.current.disabled = true;
+
+        if (refUsuario.current.disabled && refContraseña.current.disabled) {
+            refContenedorUsuario.current.style.backgroundColor = 'lightgray';
+            refContenedorContraseña.current.style.backgroundColor = 'lightgray';
+            setIniciandoSesion(true);
+        }
 
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/login/`, {
@@ -63,7 +81,12 @@ export default function Login(){
                 }
             } else {
                 console.log("Acceso invalido")
+                setIniciandoSesion(false);
                 setInvalidAccess(true)
+                refUsuario.current.disabled = false;
+                refContraseña.current.disabled = false;
+                refContenedorUsuario.current.style.backgroundColor = '';
+                refContenedorContraseña.current.style.backgroundColor = '';
             }
 
         } catch (error) {
@@ -84,25 +107,25 @@ export default function Login(){
                 <div className={styles.form_inputs}>
                     <label>
                         Usuario:
-                        <div className={styles.form_input}>
+                        <div ref={refContenedorUsuario} className={styles.form_input}>
                             <FaUser size={15}/>
-                            <input value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder='Ingresa tu usuario'></input> 
+                            <input ref={refUsuario} value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder='Ingresa tu usuario'></input> 
                         </div>                
                     </label>
                     <label>
                         Contraseña:
-                        <div className={styles.form_input}>
+                        <div ref={refContenedorContraseña} className={styles.form_input}>
                             <FaLock size={15}/>
-                            <input type='password' value={contraseña} onChange={(e) => setContraseña(e.target.value)} placeholder='Ingresa tu contraseña'></input>                            
+                            <input ref={refContraseña} type='password' value={contraseña} onChange={(e) => setContraseña(e.target.value)} placeholder='Ingresa tu contraseña'></input>                            
                         </div>
                         {invalidAccess ? <p style={{color: 'red', fontSize: '0.8rem', textAlign: 'right'}}>Acceso invalido.</p> : null}
+                        {iniciandoSesion === true ? <p style={{color: 'blue', fontSize: '0.8rem', textAlign: 'right'}}>Iniciando sesion...</p> : null}
                     </label>
                 </div>
                 <div className={styles.form_button}>
                     <button type='submit'>Iniciar sesion</button>
                 </div>
             </form>                  
-            <button onClick={() => console.log(`Access: ${localStorage.getItem('access')} refresh: ${localStorage.getItem('refresh')}`)}>Data</button>
         </div>
         </>
     )

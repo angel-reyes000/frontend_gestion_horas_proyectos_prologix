@@ -10,13 +10,24 @@ import { FaExclamationTriangle } from "react-icons/fa";
 import { FaClock, FaArrowTrendUp, FaBorderAll } from "react-icons/fa6";
 import Logo from '../../public/logo.png';
 
+// Importaciones de AOS para las animaciones del modal
+import AOS from "aos";
+import "aos/dist/aos.css";
+
 export default function AuxiliaresAdministrativos () {
     const [data, setData] = useState([]);
-    const refModalInvalidAccess = useRef(null);
     const refModalAdd = useRef(null);
-    const [invalidAccess, setInvalidAccess] = useState(false);
+    const refModalAlerta = useRef(null);
     const [modalAbierto, setModalAbierto] = useState(false);
     const router = useRouter();
+
+    // Estado global para manejo de errores y validaciones
+    const [alerta, setAlerta] = useState({
+        mostrar: false,
+        titulo: '',
+        mensaje: '',
+        redireccionar: false
+    });
 
     // Estados para los filtros
     const [selectedProject, setSelectedProject] = useState('');
@@ -33,9 +44,29 @@ export default function AuxiliaresAdministrativos () {
     const [numeroFactura, setNumeroFactura] = useState('');
     const [facturado, setFacturado] = useState('');
 
+    // Funciones para controlar la alerta general
+    const mostrarAlerta = (titulo, msj, redireccionar = false) => {
+        setAlerta({ mostrar: true, titulo: titulo, mensaje: msj, redireccionar });
+        refModalAlerta.current?.showModal();
+    };
+
+    const cerrarAlerta = () => {
+        refModalAlerta.current?.close();
+        const debeRedireccionar = alerta.redireccionar;
+        setAlerta({ mostrar: false, titulo: '', mensaje: '', redireccionar: false });
+        if (debeRedireccionar) {
+            router.push('/login');
+        }
+    };
+
     async function getData () {
         try {
             const token = localStorage.getItem('access');
+            if (!token) {
+                mostrarAlerta('Sesión caducada', 'No se encontró tu sesión. Por favor, inicia sesión de nuevo.', true);
+                return;
+            }
+
             const grupo = 'consultor';
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/auxiliar/users?grupo=${grupo}`, {
@@ -43,37 +74,31 @@ export default function AuxiliaresAdministrativos () {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
-            })
+            });
 
-            if (response.status !== 200) {
-                setInvalidAccess(true)
-                refModalInvalidAccess.current?.showModal();
+            if (response.status === 401 || response.status === 403) {
+                mostrarAlerta('Acceso inválido', 'Tu sesión ha caducado o no tienes permisos para ver esto.', true);
+                return;
             }
 
-            const datos = await response.json()
-            console.log(datos)
+            if (!response.ok) {
+                mostrarAlerta('Error en la petición', `No se pudo obtener la información de los registros (Error ${response.status}).`, false);
+                return;
+            }
+
+            const datos = await response.json();
             setData(datos);
             
         } catch (error) {
-            console.log("Error: ", error.message)
+            console.log("Error: ", error.message);
+            mostrarAlerta('Error de red', 'Ha ocurrido un error de conexión con el servidor. Revisa tu internet.', false);
         }
     }
 
     useEffect(() => {
-        getData()
+        AOS.init({ duration: 400 }); // Inicializar las animaciones AOS
+        getData();
     }, [])
-
-    function modalInvalidAccess () {
-        return invalidAccess ? (
-            <>
-                <dialog className={styles.modal} ref={refModalInvalidAccess}>
-                        <FaExclamationTriangle size={100} style={{color: 'yellow'}}/>
-                        <h1>Acceso invalido</h1>
-                        <button onClick={() => router.push('/login')}>Ir a iniciar sesion</button>
-                </dialog>
-            </>
-        ) : null
-    }
 
     // Funciones de control del Formulario/Modal
     const resetearFormulario = () => {
@@ -100,20 +125,32 @@ export default function AuxiliaresAdministrativos () {
     };
 
     const putData = async () => {
+        // Validación Frontend: Limites del modelo de Django
+        if (numeroFactura && numeroFactura.length > 20) {
+            mostrarAlerta('Campos inválidos', 'El número de factura no puede exceder los 20 caracteres.', false);
+            return;
+        }
+
+        if (facturado && !['si', 'no'].includes(facturado)) {
+            mostrarAlerta('Campos inválidos', 'El campo facturado solo acepta valores "si" o "no".', false);
+            return;
+        }
+
         try {
             const token = localStorage.getItem('access');
-            if (!token) return;
+            if (!token) {
+                mostrarAlerta('Sesión caducada', 'Tu sesión ha terminado. Inicia sesión nuevamente para guardar.', true);
+                return;
+            }
 
             // 1. Armamos el payload
             const payload = {
                 proyecto_id: registroEditando.proyecto?.id,
                 numero_factura: numeroFactura,
                 facturado: facturado,
-                horas: horas,             
+                horas: horas,            
                 descripcion: descripcion  
             };
-
-            console.log("Datos que se están enviando a Django:", payload);
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/registros/${registroEditando.id}/`, {
                 method: 'PUT',
@@ -141,16 +178,22 @@ export default function AuxiliaresAdministrativos () {
                 refModalAdd.current?.close();
                 resetearFormulario();
             } else {
-                // 2. CAPTURAMOS EL ERROR EXACTO DE DJANGO
+                // Manejo de errores devueltos por el servidor (400, 401, 500, etc.)
                 const errorData = await response.json();
-                console.error("Motivo del rechazo de Django (400):", errorData);
                 
-                // Mostramos el error convertido a texto en el recuadro rojo del modal
-                setMensaje(JSON.stringify(errorData));
+                if (response.status === 400) {
+                    mostrarAlerta('Campos faltantes o inválidos', `Revisa la información: ${JSON.stringify(errorData)}`, false);
+                } else if (response.status === 401 || response.status === 403) {
+                    mostrarAlerta('Acceso inválido', 'Tu sesión ha caducado. Vuelve a iniciar sesión.', true);
+                } else if (response.status >= 500) {
+                    mostrarAlerta('Error general', 'Hubo un error interno en el servidor. Intenta de nuevo más tarde.', false);
+                } else {
+                    mostrarAlerta('Error en la petición', `No se pudo guardar la información: ${JSON.stringify(errorData)}`, false);
+                }
             }
         } catch (error) {
             console.error("Error en la petición PUT:", error);
-            setMensaje('Error de conexión con el servidor');
+            mostrarAlerta('Error de red', 'Ocurrió un error al intentar conectarse al servidor.', false);
         }
     };
 
@@ -208,7 +251,23 @@ export default function AuxiliaresAdministrativos () {
 
     return (
         <>  
-            {modalInvalidAccess()}
+            {/* Modal Global para Alertas y Validaciones */}
+            <dialog ref={refModalAlerta} className={styles.dialog_alerta}>
+                {alerta.mostrar && (
+                    <div className={styles.alerta_contenido} data-aos="zoom-in">
+                        <div className={styles.alerta_icono}>
+                            <FaExclamationTriangle size={60} style={{color: alerta.redireccionar ? '#f43f5e' : '#eab308'}}/>
+                        </div>
+                        <div className={styles.alerta_textos}>
+                            <h2>{alerta.titulo}</h2>
+                            <p>{alerta.mensaje}</p>
+                        </div>
+                        <button className={styles.alerta_boton} onClick={cerrarAlerta}>
+                            {alerta.redireccionar ? 'Ir a Iniciar Sesión' : 'Aceptar'}
+                        </button>
+                    </div>
+                )}
+            </dialog>
 
             {/* Modal de edición de registro */}
             <dialog 
@@ -245,7 +304,7 @@ export default function AuxiliaresAdministrativos () {
                     </label>                        
                     <label>
                         N° Factura
-                        <input value={numeroFactura} onChange={(e) => setNumeroFactura(e.target.value)} />
+                        <input value={numeroFactura} onChange={(e) => setNumeroFactura(e.target.value)} maxLength={20} />
                     </label>
                     <label>
                         Facturado

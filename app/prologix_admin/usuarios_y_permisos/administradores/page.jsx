@@ -1,9 +1,11 @@
 "use client"
 
 import styles from '../../../../styles/prologix_usuarios/prologix_admin/vista_tablas.module.scss';
-import { FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaExclamationCircle } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
+import AOS from "aos";
+import "aos/dist/aos.css";
 
 export default function Administradores() {
     const router = useRouter();
@@ -11,8 +13,14 @@ export default function Administradores() {
     // 1. Estado para validar la autorización
     const [autorizado, setAutorizado] = useState(false);
 
-    // 2. Efecto para verificar el rol ANTES de mostrar la pantalla
+    // Estados para Alertas Globales
+    const alertRef = useRef(null);
+    const [alerta, setAlerta] = useState({ visible: false, titulo: '', mensaje: '', tipo: '' });
+
+    // 2. Efecto para verificar el rol ANTES de mostrar la pantalla e inicializar AOS
     useEffect(() => {
+        AOS.init({ duration: 500, once: true });
+
         const rol = localStorage.getItem('rol_usuario');
         if (rol !== 'administrador') {
             router.replace('/login');
@@ -43,6 +51,60 @@ export default function Administradores() {
         'Content-Type': 'application/json'
     };
 
+    // Función para mostrar alertas y superponer sobre el dialog existente
+    const mostrarAlerta = (titulo, mensaje, tipo = 'error') => {
+        setAlerta({ visible: true, titulo, mensaje, tipo });
+        setTimeout(() => {
+            if (alertRef.current && !alertRef.current.open) {
+                alertRef.current.showModal();
+            }
+        }, 10);
+    };
+
+    const cerrarAlerta = () => {
+        setAlerta({ ...alerta, visible: false });
+        if (alertRef.current) alertRef.current.close();
+    };
+
+    // Función centralizada para manejar la respuesta del backend
+    const validarRespuestaBackend = async (response) => {
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                mostrarAlerta("Sesión caducada / Acceso inválido", "Tu sesión ha terminado o no tienes permisos. Serás redirigido al login.", "error");
+                localStorage.removeItem('access');
+                localStorage.removeItem('rol_usuario');
+                setTimeout(() => { router.replace('/login'); }, 3000);
+                throw new Error("HTTP_401_403");
+            }
+            if (response.status === 400) {
+                let errorMsg = "Los datos enviados no son válidos.";
+                try {
+                    const errorData = await response.json();
+                    errorMsg = typeof errorData === 'object' ? JSON.stringify(errorData) : errorData;
+                } catch (e) {}
+                mostrarAlerta("Error en la petición (Campos inválidos)", errorMsg, "error");
+                throw new Error("HTTP_400");
+            }
+            if (response.status >= 500) {
+                mostrarAlerta("Error general del servidor", "Ocurrió un problema en el backend.", "error");
+                throw new Error("HTTP_500");
+            }
+            mostrarAlerta("Error desconocido", `Ocurrió un error inesperado (Status: ${response.status}).`, "error");
+            throw new Error("HTTP_UNKNOWN");
+        }
+        return response;
+    };
+
+    // Atrapa errores de red (cuando ni siquiera llega al backend)
+    const manejarErrorCatch = (error) => {
+        if (error.message.includes("HTTP_")) return; // Ya fue manejado arriba
+        if (error.name === 'TypeError' || error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            mostrarAlerta("Error de red", "No se pudo conectar con el servidor. Verifica tu conexión a internet.", "error");
+        } else {
+            mostrarAlerta("Error", error.message || "Ha ocurrido un error inesperado.", "error");
+        }
+    };
+
     // 1. Obtener Datos Iniciales
     const fetchData = async () => {
         try {
@@ -51,10 +113,13 @@ export default function Administradores() {
                 method: 'GET',
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (resUsers.ok) setData(await resUsers.json());
+            
+            await validarRespuestaBackend(resUsers);
+            const jsonData = await resUsers.json();
+            setData(jsonData);
 
         } catch (error) {
-            console.error("Error al obtener datos: ", error.message);
+            manejarErrorCatch(error);
         }
     };
 
@@ -68,13 +133,8 @@ export default function Administradores() {
     const filteredData = data.filter((obj) => {
         const termino = search.toLowerCase();
         
-        // Usuario
         const usuarioStr = (obj.username || obj.email || `Administrador ${obj.id}`).toLowerCase();
-            
-        // Estado
         const estadoStr = obj.is_active ? 'activo' : 'inactivo';
-        
-        // Fecha de ingreso
         const fechaStr = obj.date_joined ? obj.date_joined.split('T')[0] : 'sin fecha';
 
         return usuarioStr.includes(termino) || 
@@ -92,7 +152,6 @@ export default function Administradores() {
 
     const abrirModalEditar = (user) => {
         setModalMode('edit');
-        
         setFormData({
             id: user.id,
             nombre: user.first_name || user.nombre || '', 
@@ -101,7 +160,6 @@ export default function Administradores() {
             password: '', 
             is_active: user.is_active
         });
-        
         setIsOpen(true);
         dialogRef.current?.showModal();
     };
@@ -111,8 +169,38 @@ export default function Administradores() {
         dialogRef.current?.close();
     };
 
+    // Validaciones del Frontend
+    const validarCamposFrontend = () => {
+        if (!formData.nombre || !formData.email || !formData.username) {
+            mostrarAlerta("Error de campos faltantes", "Los campos Nombre, Email y Usuario son obligatorios.", "error");
+            return false;
+        }
+        if (modalMode === 'create' && !formData.password) {
+            mostrarAlerta("Error de campos faltantes", "La contraseña es obligatoria para un nuevo usuario.", "error");
+            return false;
+        }
+        // Validación basada en longitud máxima (como en los modelos de Django charfield 50/150)
+        if (formData.nombre.length > 50) {
+            mostrarAlerta("Error de campos inválidos", "El nombre excede el límite de 50 caracteres.", "error");
+            return false;
+        }
+        if (formData.username.length > 150) {
+            mostrarAlerta("Error de campos inválidos", "El nombre de usuario excede el límite de 150 caracteres.", "error");
+            return false;
+        }
+        // Validación de formato de email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            mostrarAlerta("Error de campos inválidos", "Por favor ingresa un correo electrónico válido.", "error");
+            return false;
+        }
+        return true;
+    };
+
     // 4. Funciones CRUD
     const handleGuardar = async () => {
+        if (!validarCamposFrontend()) return;
+
         try {
             const url = modalMode === 'create' 
                 ? `${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users/` 
@@ -126,8 +214,6 @@ export default function Administradores() {
                 email: formData.email,       
                 username: formData.username,
                 is_active: formData.is_active,
-                is_superuser: true, 
-                is_staff: true, // <--- AQUÍ SE AGREGA EL CAMPO
                 grupos: ['administrador']
             };
 
@@ -135,14 +221,13 @@ export default function Administradores() {
 
             const response = await fetch(url, { method, headers, body: JSON.stringify(payload) });
 
-            if (response.ok) {
-                cerrarModal();
-                fetchData(); 
-            } else {
-                console.error("Error al guardar");
-            }
+            await validarRespuestaBackend(response);
+            
+            cerrarModal();
+            fetchData(); 
+            
         } catch (error) {
-            console.error("Error: ", error.message);
+            manejarErrorCatch(error);
         }
     };
 
@@ -157,24 +242,44 @@ export default function Administradores() {
                 headers
             });
 
-            if (response.ok) {
-                cerrarModal();
-                fetchData();
-            } else {
-                console.error("Error al eliminar");
-            }
+            await validarRespuestaBackend(response);
+            
+            cerrarModal();
+            fetchData();
         } catch (error) {
-            console.error("Error: ", error.message);
+            manejarErrorCatch(error);
         }
     };
 
-    // Si no está autorizado, devolvemos null para evitar parpadeos visuales
     if (!autorizado) {
         return null;
     }
 
     return (
         <>
+            {/* MODAL DE ALERTAS / VALIDACIONES */}
+            <dialog 
+                ref={alertRef} 
+                className={styles.dialog_alerta}
+                style={{ display: alerta.visible ? '' : 'none' }}
+            >
+                {alerta.visible && (
+                    <div className={styles.alerta_contenido} data-aos="zoom-in" data-aos-duration="300">
+                        <div className={styles.alerta_icono}>
+                            <FaExclamationCircle size={40} color="#e74c3c" />
+                        </div>
+                        <div className={styles.alerta_textos}>
+                            <h2>{alerta.titulo}</h2>
+                            <p>{alerta.mensaje}</p>
+                        </div>
+                        <button className={styles.alerta_boton} onClick={cerrarAlerta}>
+                            Entendido
+                        </button>
+                    </div>
+                )}
+            </dialog>
+
+            {/* MODAL DEL FORMULARIO ORIGINAL */}
             <dialog 
                 ref={dialogRef} 
                 className={styles.dialog} 

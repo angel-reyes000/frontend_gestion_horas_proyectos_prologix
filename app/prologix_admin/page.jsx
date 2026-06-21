@@ -6,14 +6,45 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import BarChart from '../components/admin_barchart';
 import LineChart from '../components/admin_linechart';
-import { FaExclamationTriangle } from "react-icons/fa";
+import { FaExclamationTriangle, FaTimesCircle, FaWifi, FaInfoCircle } from "react-icons/fa";
 import { FaClock, FaArrowTrendUp, FaBorderAll } from "react-icons/fa6";
 import Logo from '../../public/logo.png';
 
+// Importaciones para las validaciones y animaciones
+import AOS from "aos";
+import "aos/dist/aos.css";
+
+/* =================================================================
+   VALIDACIONES FRONTEND BASADAS EN MODELOS DJANGO
+   (Para uso en formularios de creación/edición en esta vista o hijas)
+================================================================= */
+export const validacionesDjango = {
+    empresas: {
+        nombre: { required: true, maxLength: 50 },
+        logo: { required: false }
+    },
+    proyectos: {
+        empresas: { required: true },
+        nombre: { required: true, maxLength: 50 },
+        descripcion: { required: true }
+    },
+    registros: {
+        fecha_actual: { required: true },
+        numero_factura: { required: false, maxLength: 20 },
+        facturado: { required: false, maxLength: 2, choices: ['si', 'no'] },
+        usuario: { required: true },
+        proyecto: { required: true },
+        horas: { 
+            required: true, 
+            pattern: /^\d{1,2}(\.\d{1,2})?$/, // max_digits=4, decimal_places=2 (ej. 99.99)
+            errorMessage: "Debe tener máximo 4 dígitos en total y 2 decimales"
+        },
+        descripcion: { required: true }
+    }
+};
+
 export default function PrologixAdmin () {
     const [data, setData] = useState([]);
-    const refModalInvalidAccess = useRef(null);
-    const [invalidAccess, setInvalidAccess] = useState(false);
     const router = useRouter();
 
     // Estados para los filtros
@@ -21,26 +52,60 @@ export default function PrologixAdmin () {
     const [selectedWeek, setSelectedWeek] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
 
-    // 1. NUEVO: Agregamos el estado para validar la autorización
     const [autorizado, setAutorizado] = useState(false);
 
-    // 2. NUEVO: Agregamos este useEffect para verificar el rol ANTES de hacer nada
+    // Estado unificado para manejar todos los tipos de errores
+    const refModalAlerta = useRef(null);
+    const [alerta, setAlerta] = useState({
+        show: false,
+        type: '', // 'session', 'network', 'request', 'missing_fields', 'invalid_fields', 'general', 'invalid_access'
+        title: '',
+        message: ''
+    });
+
     useEffect(() => {
+        // Inicializar animaciones AOS
+        AOS.init({ duration: 400, once: true });
+
         const rol = localStorage.getItem('rol_usuario');
         if (rol !== 'administrador') {
-            // Si el rol en localStorage no es administrador, lo mandamos al login
-            router.replace('/login');
+            mostrarAlerta('invalid_access', 'Acceso Inválido', 'No tienes los permisos necesarios para ver esta sección.');
         } else {
-            // Si es administrador, le damos permiso para ver la pantalla
             setAutorizado(true);
         }
-    }, [router]);
+    }, []);
+
+    // Efecto para abrir o cerrar el <dialog> nativamente
+    useEffect(() => {
+        if (alerta.show && refModalAlerta.current) {
+            refModalAlerta.current.showModal();
+        } else if (!alerta.show && refModalAlerta.current) {
+            refModalAlerta.current.close();
+        }
+    }, [alerta.show]);
+
+    const mostrarAlerta = (type, title, message) => {
+        setAlerta({ show: true, type, title, message });
+    };
+
+    const cerrarAlerta = () => {
+        const tipoActual = alerta.type;
+        setAlerta({ ...alerta, show: false });
+        
+        // Redirección obligatoria si la sesión caducó o el acceso es inválido
+        if (tipoActual === 'session' || tipoActual === 'invalid_access') {
+            router.replace('/login');
+        }
+    };
 
     useEffect(() => {
         async function getData () {
-            // ... (tu código se mantiene exactamente igual)
             try {
                 const token = localStorage.getItem('access');
+                if (!token) {
+                    mostrarAlerta('session', 'Sesión Caducada', 'No se encontró una sesión activa. Por favor, inicia sesión.');
+                    return;
+                }
 
                 const grupo = 'consultor';
                 const response = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users?grupo=${grupo}`, {
@@ -48,43 +113,90 @@ export default function PrologixAdmin () {
                     headers: {
                         Authorization: `Bearer ${token}`
                     }
-                })
+                });
 
-                if (response.status !== 200) {
-                    setInvalidAccess(true)
-                    refModalInvalidAccess.current?.showModal();
+                // Manejo de errores basado en códigos de estado
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        mostrarAlerta('session', 'Sesión Caducada o Acceso Denegado', 'Tu sesión ha expirado o tu acceso es inválido.');
+                        return;
+                    }
+                    if (response.status === 400) {
+                        const errorData = await response.json().catch(() => ({}));
+                        // Identificar si es por campos faltantes o inválidos
+                        if (errorData.missing_fields) {
+                            mostrarAlerta('missing_fields', 'Campos Faltantes', 'Faltan campos requeridos en la petición de datos.');
+                        } else {
+                            mostrarAlerta('invalid_fields', 'Campos Inválidos', 'Los datos proporcionados o solicitados son inválidos según el modelo.');
+                        }
+                        return;
+                    }
+                    if (response.status >= 500) {
+                        mostrarAlerta('general', 'Error en el servidor', 'Ha ocurrido un problema inesperado en el servidor.');
+                        return;
+                    }
+                    
+                    mostrarAlerta('request', 'Error en la petición', 'No se pudo procesar la solicitud correctamente.');
+                    return;
                 }
 
-                const datos = await response.json()
+                const datos = await response.json();
+                
+                // Validación extra: asegurarse de que vienen datos íntegros
+                if (!Array.isArray(datos)) {
+                    mostrarAlerta('invalid_fields', 'Error de Integridad', 'La estructura de los datos recibidos es inválida.');
+                    return;
+                }
+
                 setData(datos);
                 
             } catch (error) {
-                console.log("Error: ", error.message)
+                console.log("Error: ", error.message);
+                mostrarAlerta('network', 'Error de Red', 'No se pudo conectar con el servidor. Revisa tu conexión a internet.');
             }
         }
 
-        // Solo traemos los datos si ya comprobamos que es administrador
         if (autorizado) {
             getData();
         }
 
-    }, [autorizado]) // Dependencia actualizada para que reaccione al permiso
+    }, [autorizado]);
 
-    // 3. NUEVO: Si no está autorizado, devolvemos null para que la pantalla se quede en blanco (evita el parpadeo de la vista admin)
-    if (!autorizado) {
+    if (!autorizado && !alerta.show) {
         return null;
     }
 
-    function modalInvalidAccess () {
-        return invalidAccess ? (
-            <>
-                <dialog className={styles.modal} ref={refModalInvalidAccess}>
-                        <FaExclamationTriangle size={100} style={{color: 'yellow'}}/>
-                        <h1>Acceso invalido</h1>
-                        <button onClick={() => router.push('/login')}>Ir a iniciar sesion</button>
-                </dialog>
-            </>
-        ) : null
+    // Determinar el ícono y color basado en el tipo de alerta
+    const getAlertaIcon = () => {
+        switch (alerta.type) {
+            case 'session':
+            case 'invalid_access':
+                return <FaExclamationTriangle size={60} color="#eab308" className={styles.alerta_icono} />;
+            case 'network':
+                return <FaWifi size={60} color="#ef4444" className={styles.alerta_icono} />;
+            case 'missing_fields':
+            case 'invalid_fields':
+                return <FaTimesCircle size={60} color="#f97316" className={styles.alerta_icono} />;
+            default:
+                return <FaInfoCircle size={60} color="#3b82f6" className={styles.alerta_icono} />;
+        }
+    };
+
+    function modalAlertaGlobal () {
+        return (
+            <dialog className={styles.dialog_alerta} ref={refModalAlerta}>
+                <div className={styles.alerta_contenido} data-aos="zoom-in">
+                    {getAlertaIcon()}
+                    <div className={styles.alerta_textos}>
+                        <h2>{alerta.title}</h2>
+                        <p>{alerta.message}</p>
+                    </div>
+                    <button className={styles.alerta_boton} onClick={cerrarAlerta}>
+                        {(alerta.type === 'session' || alerta.type === 'invalid_access') ? 'Ir a iniciar sesión' : 'Entendido'}
+                    </button>
+                </div>
+            </dialog>
+        );
     }
 
     // 1. Aplanar los datos: Convertir la estructura anidada de usuarios a una lista plana de registros
@@ -141,8 +253,8 @@ export default function PrologixAdmin () {
 
     return (
         <>  
-            {/* TU JSX SE MANTIENE EXACTAMENTE IGUAL */}
-            {modalInvalidAccess()}
+            {modalAlertaGlobal()}
+            
             <div className={styles.vista_consultor}>
                 <div className={styles.vista_consultor_encabezado}>
                     <div className={styles.encabezado_titulo}>
