@@ -1,9 +1,11 @@
 "use client"
 
 import styles from '../../../../styles/prologix_usuarios/prologix_admin/vista_tablas.module.scss';
-import { FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaExclamationCircle } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
+import AOS from "aos";
+import "aos/dist/aos.css";
 
 export default function AuxiliaresVista() {
     const router = useRouter();
@@ -11,14 +13,14 @@ export default function AuxiliaresVista() {
     // 1. Estado para validar la autorización
     const [autorizado, setAutorizado] = useState(false);
 
-    // 2. Efecto para verificar el rol ANTES de mostrar la pantalla
+    // 2. Efecto para verificar el rol ANTES de mostrar la pantalla e inicializar AOS
     useEffect(() => {
+        AOS.init({ duration: 400 }); // Inicializamos las animaciones
+
         const rol = localStorage.getItem('rol_usuario');
         if (rol !== 'administrador') {
-            // Si no es admin, lo redirigimos al login
             router.replace('/login');
         } else {
-            // Si es admin, le permitimos ver la pantalla
             setAutorizado(true);
         }
     }, [router]);
@@ -32,11 +34,20 @@ export default function AuxiliaresVista() {
     const [modalMode, setModalMode] = useState('create');
     const [formData, setFormData] = useState({
         id: null,
-        nombre: '', // <--- CAMBIO: Añadido para el control del input
-        email: '',  // <--- CAMBIO: Añadido para el control del input
+        nombre: '', 
+        email: '',  
         username: '',
         password: '',
         is_active: true
+    });
+
+    // Estado y Ref para el Modal de Alertas/Validaciones
+    const alertRef = useRef(null);
+    const [alertData, setAlertData] = useState({
+        show: false,
+        titulo: '',
+        mensaje: '',
+        accion: null
     });
 
     const token = typeof window !== 'undefined' ? localStorage.getItem('access') : '';
@@ -45,24 +56,97 @@ export default function AuxiliaresVista() {
         'Content-Type': 'application/json'
     };
 
+    // --- FUNCIONES DE ALERTA Y VALIDACIÓN ---
+
+    const mostrarAlerta = (titulo, mensaje, accion = null) => {
+        setAlertData({ show: true, titulo, mensaje, accion });
+        alertRef.current?.showModal();
+    };
+
+    const cerrarAlerta = () => {
+        const accionPendiente = alertData.accion;
+        setAlertData({ show: false, titulo: '', mensaje: '', accion: null });
+        alertRef.current?.close();
+
+        // Si la sesión caducó, redirigimos al login tras cerrar el modal
+        if (accionPendiente === 'logout') {
+            localStorage.clear();
+            router.replace('/login');
+        }
+    };
+
+    const manejarErroresBackend = async (response) => {
+        if (response.status === 401) {
+            mostrarAlerta('Sesión caducada', 'Tu sesión ha expirado o el token es inválido. Por favor, inicia sesión nuevamente.', 'logout');
+        } else if (response.status === 403) {
+            mostrarAlerta('Acceso inválido', 'No tienes los permisos necesarios para realizar esta acción u obtener estos datos.');
+        } else if (response.status === 400) {
+            try {
+                const errorData = await response.json();
+                const mensajes = Object.values(errorData).flat().join(' ');
+                mostrarAlerta('Error de campos inválidos', `Verifica la información enviada: ${mensajes}`);
+            } catch (e) {
+                mostrarAlerta('Error de campos', 'Se enviaron datos incorrectos o incompletos al servidor.');
+            }
+        } else if (response.status >= 500) {
+            mostrarAlerta('Error general', 'Ocurrió un error interno en el servidor. Intenta de nuevo más tarde.');
+        } else {
+            mostrarAlerta('Error en la petición', `No se pudo completar la solicitud. (Código: ${response.status})`);
+        }
+    };
+
+    const validarFormulario = () => {
+        // Validar campos faltantes (basado en null=False, blank=False)
+        if (!formData.nombre.trim() || !formData.email.trim() || !formData.username.trim()) {
+            mostrarAlerta('Error de campos faltantes', 'Los campos Nombre, Email y Usuario son obligatorios.');
+            return false;
+        }
+
+        // Validar longitud máxima (basado en max_length=50 de tus modelos)
+        if (formData.nombre.length > 50 || formData.username.length > 50) {
+            mostrarAlerta('Error de campos inválidos', 'El nombre y el usuario no pueden exceder los 50 caracteres.');
+            return false;
+        }
+
+        // Validar formato de email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            mostrarAlerta('Error de campos inválidos', 'Por favor, ingresa un formato de correo electrónico válido.');
+            return false;
+        }
+
+        // Contraseña obligatoria solo al crear
+        if (modalMode === 'create' && !formData.password.trim()) {
+            mostrarAlerta('Error de campos faltantes', 'La contraseña es obligatoria al registrar un usuario nuevo.');
+            return false;
+        }
+
+        return true;
+    };
+
+    // --- FUNCIONES CRUD ORIGINALES (CON VALIDACIONES) ---
+
     // 1. Obtener Datos Iniciales
     const fetchData = async () => {
         try {
-            // Cambiado al grupo 'auxiliar'
             const grupo = 'auxiliar'; 
             const resUsers = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users?grupo=${grupo}`, {
                 method: 'GET',
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (resUsers.ok) setData(await resUsers.json());
-
+            
+            if (resUsers.ok) {
+                setData(await resUsers.json());
+            } else {
+                await manejarErroresBackend(resUsers);
+            }
         } catch (error) {
+            mostrarAlerta('Error de red', 'No se pudo conectar con el servidor. Verifica tu conexión a internet.');
             console.error("Error al obtener datos: ", error.message);
         }
     };
 
     useEffect(() => {
-        // Solo llamamos a la API si el usuario está autorizado
         if (autorizado) {
             fetchData();
         }
@@ -84,7 +168,6 @@ export default function AuxiliaresVista() {
     // 3. Manejo del Formulario y Modal
     const abrirModalCrear = () => {
         setModalMode('create');
-        // <--- CAMBIO: Se limpian nombre y email al crear
         setFormData({ id: null, nombre: '', email: '', username: '', password: '', is_active: true });
         setIsOpen(true); 
         dialogRef.current?.showModal();
@@ -94,8 +177,8 @@ export default function AuxiliaresVista() {
         setModalMode('edit');
         setFormData({
             id: user.id,
-            nombre: user.first_name || user.nombre || '', // <--- CAMBIO: Obtener nombre del backend
-            email: user.email || '',                      // <--- CAMBIO: Obtener email del backend
+            nombre: user.first_name || user.nombre || '', 
+            email: user.email || '',                      
             username: user.username,
             password: '', 
             is_active: user.is_active
@@ -112,6 +195,8 @@ export default function AuxiliaresVista() {
 
     // 4. Funciones CRUD
     const handleGuardar = async () => {
+        if (!validarFormulario()) return; // <--- Validación Frontend
+
         try {
             const url = modalMode === 'create' 
                 ? `${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users/` 
@@ -120,12 +205,12 @@ export default function AuxiliaresVista() {
             const method = modalMode === 'create' ? 'POST' : 'PUT'; 
 
             const payload = {
-                first_name: formData.nombre, // <--- CAMBIO: Se envía el nombre
-                nombre: formData.nombre,     // <--- CAMBIO: Se envía el nombre
-                email: formData.email,       // <--- CAMBIO: Se envía el email
+                first_name: formData.nombre, 
+                nombre: formData.nombre,     
+                email: formData.email,       
                 username: formData.username,
                 is_active: formData.is_active,
-                grupos: ['auxiliar'] // Asignando el grupo 'auxiliar'
+                grupos: ['auxiliar'] 
             };
 
             if (formData.password) payload.password = formData.password;
@@ -136,15 +221,20 @@ export default function AuxiliaresVista() {
                 cerrarModal();
                 fetchData(); 
             } else {
-                console.error("Error al guardar");
+                await manejarErroresBackend(response); // <--- Validación Backend
             }
         } catch (error) {
+            mostrarAlerta('Error de red', 'Ocurrió un error inesperado de conexión al guardar los datos.');
             console.error("Error: ", error.message);
         }
     };
 
     const handleEliminar = async () => {
-        if (!formData.id) return;
+        if (!formData.id) {
+            mostrarAlerta('Error de otra cosa', 'No se ha seleccionado un ID válido para eliminar.');
+            return;
+        }
+        
         const confirmacion = window.confirm("¿Estás seguro de eliminar este registro?");
         if (!confirmacion) return;
 
@@ -158,21 +248,43 @@ export default function AuxiliaresVista() {
                 cerrarModal();
                 fetchData();
             } else {
-                console.error("Error al eliminar");
+                await manejarErroresBackend(response); // <--- Validación Backend
             }
         } catch (error) {
+            mostrarAlerta('Error de red', 'Ocurrió un error inesperado de conexión al eliminar.');
             console.error("Error: ", error.message);
         }
     };
 
-    // Si no está autorizado, devolvemos null para evitar parpadeos visuales
     if (!autorizado) {
         return null;
     }
 
     return (
         <>
-            {/* MODAL */}
+            {/* MODAL DE ALERTAS/VALIDACIONES */}
+            <dialog 
+                ref={alertRef} 
+                className={styles.dialog_alerta} 
+                style={{ display: alertData.show ? '' : 'none' }}
+            >
+                {alertData.show && (
+                    <div className={styles.alerta_contenido} data-aos="fade-up">
+                        <div className={styles.alerta_icono}>
+                            <FaExclamationCircle size={45} color="#eab308" />
+                        </div>
+                        <div className={styles.alerta_textos}>
+                            <h2>{alertData.titulo}</h2>
+                            <p>{alertData.mensaje}</p>
+                        </div>
+                        <button className={styles.alerta_boton} onClick={cerrarAlerta}>
+                            Entendido
+                        </button>
+                    </div>
+                )}
+            </dialog>
+
+            {/* MODAL DEL FORMULARIO CRUD */}
             <dialog 
                 ref={dialogRef} 
                 className={styles.dialog} 
@@ -189,13 +301,13 @@ export default function AuxiliaresVista() {
                 </div>                  
                 
                 <div className={styles.dialog_inputs}>
-                    {/* <--- CAMBIO: Inputs controlados de nombre y email ---> */}
                     <label>
                         Nombre:
                         <input 
                             placeholder="Nombre..." 
                             value={formData.nombre}
                             onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                            maxLength={50} // Restricción base Django
                         />
                     </label>
                     <label>
@@ -213,6 +325,7 @@ export default function AuxiliaresVista() {
                             placeholder="Nombre de usuario..." 
                             value={formData.username}
                             onChange={(e) => setFormData({...formData, username: e.target.value})}
+                            maxLength={50} // Restricción base Django
                         />
                     </label> 
                     <label>

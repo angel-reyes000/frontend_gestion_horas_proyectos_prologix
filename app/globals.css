@@ -9,3 +9,79 @@ body {
     background-color: rgb(241, 245, 249);
 
 }
+
+/* =========================================
+   ESTILOS PARA VALIDACIONES Y ALERTAS
+========================================= */
+
+.dialog_alerta {
+    border: none;
+    border-radius: 12px;
+    padding: 0;
+    margin: auto;
+    background: transparent;
+    overflow: visible;
+
+    /* Fondo oscuro nativo del dialog */
+    &::backdrop {
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(3px);
+    }
+
+    .alerta_contenido {
+        background: #ffffff;
+        width: 100%;
+        max-width: 400px;
+        border-radius: 12px;
+        padding: 30px 20px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 15px;
+
+        .alerta_icono {
+            animation: pulse-icon 1.5s infinite;
+        }
+
+        .alerta_textos {
+            h2 {
+                margin: 0;
+                font-size: 1.25rem;
+                color: #333333;
+                font-weight: 600;
+            }
+
+            p {
+                margin: 8px 0 0;
+                font-size: 0.95rem;
+                color: #666666;
+                line-height: 1.5;
+                word-wrap: break-word;
+            }
+        }
+
+        .alerta_boton {
+            margin-top: 10px;
+            background-color: #2563eb;
+            color: #ffffff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+
+            &:hover {
+                background-color: #1d4ed8;
+            }
+        }
+    }
+}
+
+@keyframes pulse-icon {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}

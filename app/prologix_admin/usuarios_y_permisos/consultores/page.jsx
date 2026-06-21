@@ -1,24 +1,37 @@
 "use client"
 
 import styles from '../../../../styles/prologix_usuarios/prologix_admin/vista_tablas.module.scss';
-import { FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaExclamationCircle } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
+
+// Importaciones para las animaciones del modal de alertas
+import AOS from "aos";
+import "aos/dist/aos.css";
 
 export default function Consultores() {
     const router = useRouter();
     
-    // 1. NUEVO: Estado para validar la autorización
+    // 1. Estado para validar la autorización
     const [autorizado, setAutorizado] = useState(false);
 
-    // 2. NUEVO: Efecto para verificar el rol ANTES de mostrar la pantalla
+    // NUEVO: Estados y Referencia para el Modal de Alertas/Validaciones
+    const alertRef = useRef(null);
+    const [alertConfig, setAlertConfig] = useState({
+        isOpen: false,
+        titulo: '',
+        mensaje: '',
+        redirectAuth: false
+    });
+
+    // 2. Efecto para verificar el rol ANTES de mostrar la pantalla e inicializar AOS
     useEffect(() => {
+        AOS.init(); // Inicializar animaciones de AOS
+
         const rol = localStorage.getItem('rol_usuario');
         if (rol !== 'administrador') {
-            // Si no es admin, lo redirigimos al login
             router.replace('/login');
         } else {
-            // Si es admin, le permitimos ver la pantalla
             setAutorizado(true);
         }
     }, [router]);
@@ -33,8 +46,8 @@ export default function Consultores() {
     const [modalMode, setModalMode] = useState('create');
     const [formData, setFormData] = useState({
         id: null,
-        nombre: '', // <--- CAMBIO: Agregado para el control del input
-        email: '',  // <--- CAMBIO: Agregado para el control del input
+        nombre: '', 
+        email: '',  
         username: '',
         password: '',
         proyectos: [], 
@@ -47,6 +60,51 @@ export default function Consultores() {
         'Content-Type': 'application/json'
     };
 
+    // Función para mostrar alertas generales
+    const mostrarAlerta = (titulo, mensaje, redirectAuth = false) => {
+        setAlertConfig({ isOpen: true, titulo, mensaje, redirectAuth });
+        alertRef.current?.showModal();
+    };
+
+    // Función para cerrar la alerta y manejar redirección si la sesión caducó
+    const cerrarAlerta = () => {
+        setAlertConfig(prev => ({ ...prev, isOpen: false }));
+        alertRef.current?.close();
+        
+        if (alertConfig.redirectAuth) {
+            localStorage.clear();
+            router.replace('/login');
+        }
+    };
+
+    // Manejador centralizado para respuestas del backend
+    const procesarRespuestaBackend = async (response) => {
+        if (response.status === 401 || response.status === 403) {
+            mostrarAlerta("Sesión caducada o Acceso inválido", "Tu sesión ha expirado o no tienes permisos para esta acción. Serás redirigido al inicio de sesión.", true);
+            return null;
+        }
+
+        if (!response.ok) {
+            try {
+                const errorData = await response.json();
+                // Extraer mensajes exactos del backend si existen
+                const detalleErrores = typeof errorData === 'object' 
+                    ? Object.entries(errorData).map(([key, val]) => `${key}: ${val}`).join(' | ') 
+                    : "Datos enviados no son válidos.";
+                
+                mostrarAlerta("Error en la petición", `El servidor rechazó la operación. Detalles: ${detalleErrores}`);
+            } catch (e) {
+                mostrarAlerta("Error del servidor", `Ocurrió un problema procesando tu solicitud (Código ${response.status}).`);
+            }
+            return null;
+        }
+
+        // Si es un DELETE (204 No Content), no hay JSON que parsear
+        if (response.status === 204) return true;
+
+        return await response.json();
+    };
+
     // 1. Obtener Datos Iniciales
     const fetchData = async () => {
         try {
@@ -55,47 +113,46 @@ export default function Consultores() {
                 method: 'GET',
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (resUsers.ok) setData(await resUsers.json());
+            
+            const usersData = await procesarRespuestaBackend(resUsers);
+            if (usersData) setData(usersData);
 
             const resProyectos = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/proyectos`, {
                 method: 'GET',
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (resProyectos.ok) setAllProyectos(await resProyectos.json());
+            
+            const proyectosData = await procesarRespuestaBackend(resProyectos);
+            if (proyectosData) setAllProyectos(proyectosData);
 
         } catch (error) {
+            mostrarAlerta("Error de red", "No se pudo conectar con el servidor. Verifica tu conexión a internet o intenta más tarde.");
             console.error("Error al obtener datos: ", error.message);
         }
     };
 
     useEffect(() => {
-        // Solo llamamos a la API si el usuario está autorizado
         if (autorizado) {
             fetchData();
         }
-    }, [autorizado]); // Dependencia agregada para que se ejecute al confirmar autorización
+    }, [autorizado]);
 
     // 2. Filtro de Búsqueda
     const filteredData = data.filter((obj) => {
         const termino = search.toLowerCase();
         
-        // Usuario
         const usuarioStr = (obj.username || obj.email || `Consultor ${obj.id}`).toLowerCase();
         
-        // Empresas (coincidiendo con lo que se renderiza en la tabla)
         const empresasStr = obj.empresas_nombres && obj.empresas_nombres.length > 0 
             ? obj.empresas_nombres.join(' ').toLowerCase() 
             : 'sin empresas';
         
-        // Proyectos (coincidiendo con lo que se renderiza en la tabla)
         const proyectosStr = obj.proyectos_nombres && obj.proyectos_nombres.length > 0 
             ? obj.proyectos_nombres.join(' ').toLowerCase() 
             : 'sin proyectos asignados';
             
-        // Estado
         const estadoStr = obj.is_active ? 'activo' : 'inactivo';
         
-        // Fecha de ingreso
         const fechaStr = obj.date_joined ? obj.date_joined.split('T')[0] : 'sin fecha';
 
         return usuarioStr.includes(termino) || 
@@ -108,7 +165,6 @@ export default function Consultores() {
     // 3. Manejo del Formulario y Modal
     const abrirModalCrear = () => {
         setModalMode('create');
-        // <--- CAMBIO: Se limpian nombre y email al crear
         setFormData({ id: null, nombre: '', email: '', username: '', password: '', proyectos: [], is_active: true });
         setIsOpen(true); 
         dialogRef.current?.showModal();
@@ -117,23 +173,21 @@ export default function Consultores() {
     const abrirModalEditar = (user) => {
         setModalMode('edit');
         console.log("Usuario recibido del backend:", user);
-        // Extraemos los IDs de los proyectos de forma segura
+        
         const projectIds = user.registros 
             ? Array.from(new Set(user.registros.map(r => {
-                // Si el backend manda un objeto, sacamos el id. Si manda solo el número, lo usamos directo.
                 const id = typeof r.proyecto === 'object' ? r.proyecto?.id : r.proyecto;
-                // Forzamos a que sea un número entero (React necesita que los tipos coincidan para el select)
                 return parseInt(id);
-            }).filter(id => !isNaN(id)))) // Filtramos nulos o inválidos
+            }).filter(id => !isNaN(id)))) 
             : [];
 
         setFormData({
             id: user.id,
-            nombre: user.first_name || user.nombre || '', // <--- CAMBIO: Obtener nombre/first_name del backend
-            email: user.email || '',                      // <--- CAMBIO: Obtener email del backend
+            nombre: user.first_name || user.nombre || '', 
+            email: user.email || '',                      
             username: user.username,
             password: '', 
-            proyectos: user.proyectos_asignados || [], // Aquí se asigna el arreglo de IDs limpios
+            proyectos: user.proyectos_asignados || [], 
             is_active: user.is_active
         });
         
@@ -158,8 +212,32 @@ export default function Consultores() {
     
     const empresasUnicasForm = Array.from(new Map(empresasRelacionadas.map(e => [e.id, e])).values());
 
-    // 4. Funciones CRUD
+    // 4. Funciones CRUD con Validaciones
     const handleGuardar = async () => {
+        // VALIDACIONES FRONTEND ANTES DE ENVIAR (Basadas en estándares Django)
+        if (!formData.nombre.trim() || !formData.username.trim()) {
+            mostrarAlerta("Campos faltantes", "El nombre y el usuario son obligatorios.");
+            return;
+        }
+
+        if (formData.nombre.length > 150 || formData.username.length > 150) {
+            mostrarAlerta("Campos inválidos", "El nombre y usuario no deben superar los 150 caracteres.");
+            return;
+        }
+
+        if (formData.email) {
+            const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!regexEmail.test(formData.email)) {
+                mostrarAlerta("Campos inválidos", "El formato del correo electrónico (email) no es válido.");
+                return;
+            }
+        }
+
+        if (modalMode === 'create' && !formData.password.trim()) {
+            mostrarAlerta("Campos faltantes", "La contraseña es obligatoria para registrar un nuevo consultor.");
+            return;
+        }
+
         try {
             const url = modalMode === 'create' 
                 ? `${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users/` 
@@ -168,9 +246,9 @@ export default function Consultores() {
             const method = modalMode === 'create' ? 'POST' : 'PUT'; 
 
             const payload = {
-                first_name: formData.nombre, // <--- CAMBIO: Añadido para mandar nombre al backend (Django usa first_name por defecto)
-                nombre: formData.nombre,     // <--- CAMBIO: Se envía también como 'nombre' por seguridad dependiendo de tu API
-                email: formData.email,       // <--- CAMBIO: Añadido para mandar email
+                first_name: formData.nombre,
+                nombre: formData.nombre,     
+                email: formData.email,       
                 username: formData.username,
                 is_active: formData.is_active,
                 proyectos: formData.proyectos,
@@ -181,13 +259,15 @@ export default function Consultores() {
 
             const response = await fetch(url, { method, headers, body: JSON.stringify(payload) });
 
-            if (response.ok) {
+            // Evaluamos la respuesta usando nuestro manejador
+            const result = await procesarRespuestaBackend(response);
+
+            if (result) {
                 cerrarModal();
                 fetchData(); 
-            } else {
-                console.error("Error al guardar");
             }
         } catch (error) {
+            mostrarAlerta("Error de red", "No se pudo conectar con el servidor. Verifica tu conexión a internet.");
             console.error("Error: ", error.message);
         }
     };
@@ -203,25 +283,47 @@ export default function Consultores() {
                 headers
             });
 
-            if (response.ok) {
+            // Evaluamos la respuesta usando nuestro manejador
+            const result = await procesarRespuestaBackend(response);
+
+            if (result) {
                 cerrarModal();
                 fetchData();
-            } else {
-                console.error("Error al eliminar");
             }
         } catch (error) {
+            mostrarAlerta("Error de red", "No se pudo comunicar con el servidor para eliminar el registro. Revisa tu conexión.");
             console.error("Error: ", error.message);
         }
     };
 
-    // 3. NUEVO: Si no está autorizado, devolvemos null para evitar parpadeos visuales
     if (!autorizado) {
         return null;
     }
 
     return (
         <>
-            {/* Se agrega el condicional style={{ display: isOpen ? '' : 'none' }} para arreglar el bug visual */}
+            {/* NUEVO: Dialog para validaciones y alertas */}
+            <dialog 
+                ref={alertRef} 
+                className={styles.dialog_alerta} 
+                style={{ display: alertConfig.isOpen ? '' : 'none' }}
+            >
+                {alertConfig.isOpen && (
+                    <div className={styles.alerta_contenido} data-aos="zoom-in" data-aos-duration="300">
+                        <div className={styles.alerta_icono}>
+                            <FaExclamationCircle size={50} color="#eab308" />
+                        </div>
+                        <div className={styles.alerta_textos}>
+                            <h2>{alertConfig.titulo}</h2>
+                            <p>{alertConfig.mensaje}</p>
+                        </div>
+                        <button className={styles.alerta_boton} onClick={cerrarAlerta}>
+                            Entendido
+                        </button>
+                    </div>
+                )}
+            </dialog>
+
             <dialog 
                 ref={dialogRef} 
                 className={styles.dialog} 
@@ -238,7 +340,6 @@ export default function Consultores() {
                 </div>                  
                 
                 <div className={styles.dialog_inputs}>
-                    {/* <--- CAMBIO: Inputs controlados de nombre y email ---> */}
                     <label>
                         Nombre:
                         <input 
@@ -281,7 +382,7 @@ export default function Consultores() {
                                 <option key={p.id} value={p.id}>{p.nombre}</option>
                             ))}
                         </select>
-                    </label>       
+                    </label>      
                     
                     <label>
                         Empresas (Autogenerado):
@@ -290,7 +391,7 @@ export default function Consultores() {
                                 <option key={e.id} value={e.id}>{e.nombre}</option>
                             ))}
                         </select>
-                    </label>       
+                    </label>      
                     
                     <label>
                         Estado:
@@ -314,7 +415,7 @@ export default function Consultores() {
                             <button onClick={handleEliminar}>
                                 <FaTrash size={20} />
                             </button>
-                        </div>                     
+                        </div>                    
                     )}
                 </div>
             </dialog>

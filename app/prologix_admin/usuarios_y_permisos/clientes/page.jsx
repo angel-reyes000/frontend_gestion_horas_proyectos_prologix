@@ -1,24 +1,25 @@
 "use client"
 
 import styles from '../../../../styles/prologix_usuarios/prologix_admin/vista_tablas.module.scss';
-import { FaPlus, FaSearch, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaTrash, FaExclamationCircle } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
+import AOS from "aos";
+import "aos/dist/aos.css";
 
 export default function Clientes() {
     const router = useRouter();
     
-    // 1. NUEVO: Estado para validar la autorización
     const [autorizado, setAutorizado] = useState(false);
 
-    // 2. NUEVO: Efecto para verificar el rol ANTES de mostrar la pantalla
     useEffect(() => {
+        // Inicializar AOS
+        AOS.init({ duration: 300 });
+
         const rol = localStorage.getItem('rol_usuario');
         if (rol !== 'administrador') {
-            // Si no es admin, lo redirigimos al login
             router.replace('/login');
         } else {
-            // Si es admin, le permitimos ver la pantalla
             setAutorizado(true);
         }
     }, [router]);
@@ -41,35 +42,101 @@ export default function Clientes() {
         is_active: true
     });
 
+    // Estados para Alertas de Validación
+    const alertaDialogRef = useRef(null);
+    const [alerta, setAlerta] = useState({
+        isOpen: false,
+        titulo: '',
+        mensaje: '',
+        accion: null
+    });
+
     const token = typeof window !== 'undefined' ? localStorage.getItem('access') : '';
     const headers = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
     };
 
+    // --- FUNCIONES DE ALERTA Y MANEJO DE ERRORES ---
+    const mostrarAlerta = (titulo, mensaje, accion = null) => {
+        setAlerta({ isOpen: true, titulo, mensaje, accion });
+        alertaDialogRef.current?.showModal();
+    };
+
+    const cerrarAlerta = () => {
+        const accionPendiente = alerta.accion;
+        setAlerta({ isOpen: false, titulo: '', mensaje: '', accion: null });
+        alertaDialogRef.current?.close();
+        if (accionPendiente) accionPendiente();
+    };
+
+    const manejarErrorBackend = async (response) => {
+        if (response.status === 401 || response.status === 403) {
+            mostrarAlerta("Sesión caducada / Acceso inválido", "Tu sesión ha terminado o no tienes los permisos necesarios. Por favor, inicia sesión nuevamente.", () => {
+                localStorage.removeItem('access');
+                localStorage.removeItem('rol_usuario');
+                router.replace('/login');
+            });
+            return true;
+        }
+        if (response.status === 400) {
+            try {
+                const errorData = await response.json();
+                // Extraer mensajes de error del JSON
+                const mensajes = Object.entries(errorData).map(([key, val]) => `${key}: ${Array.isArray(val) ? val.join(', ') : val}`).join(' | ');
+                mostrarAlerta("Error de campos inválidos o faltantes", mensajes || "Revisa la información enviada.");
+            } catch {
+                mostrarAlerta("Error en la petición", "Los datos enviados son inválidos o están incompletos.");
+            }
+            return true;
+        }
+        if (!response.ok) {
+            mostrarAlerta("Error general", `Ha ocurrido un error inesperado en el servidor (Código: ${response.status}). Inténtalo de nuevo más tarde.`);
+            return true;
+        }
+        return false;
+    };
+
+    const validarFrontend = () => {
+        if (!formData.nombre.trim()) return "El campo 'Nombre' es obligatorio.";
+        if (formData.nombre.length > 50) return "El 'Nombre' no puede exceder los 50 caracteres."; // Basado en max_length=50 de tu modelo
+        if (!formData.username.trim()) return "El campo 'Usuario' es obligatorio.";
+        if (!formData.email.trim()) return "El campo 'Email' es obligatorio.";
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) return "El formato del 'Email' es inválido.";
+        
+        if (modalMode === 'create' && !formData.password) return "La 'Contraseña' es obligatoria para nuevos registros.";
+        return null;
+    };
+
     // 1. Obtener Datos Iniciales
     const fetchData = async () => {
         try {
-            const grupo = 'cliente'; // <--- CAMBIO: Ahora busca por el grupo cliente
+            const grupo = 'cliente'; 
             const resUsers = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users?grupo=${grupo}`, {
                 method: 'GET',
                 headers: { Authorization: `Bearer ${token}` }
             });
+            
+            if (await manejarErrorBackend(resUsers)) return;
             if (resUsers.ok) setData(await resUsers.json());
 
             const resProyectos = await fetch(`${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/proyectos`, {
                 method: 'GET',
                 headers: { Authorization: `Bearer ${token}` }
             });
+
+            if (await manejarErrorBackend(resProyectos)) return;
             if (resProyectos.ok) setAllProyectos(await resProyectos.json());
 
         } catch (error) {
+            mostrarAlerta("Error de red", "No se pudo conectar con el servidor. Verifica tu conexión a internet o intenta más tarde.");
             console.error("Error al obtener datos: ", error.message);
         }
     };
 
     useEffect(() => {
-        // Solo llamamos a la API si el usuario está autorizado
         if (autorizado) {
             fetchData();
         }
@@ -79,23 +146,14 @@ export default function Clientes() {
     const filteredData = data.filter((obj) => {
         const termino = search.toLowerCase();
         
-        // Usuario
-        const usuarioStr = (obj.username || obj.email || `Cliente ${obj.id}`).toLowerCase(); // <--- CAMBIO: Consultor por Cliente
-        
-        // Empresas
+        const usuarioStr = (obj.username || obj.email || `Cliente ${obj.id}`).toLowerCase();
         const empresasStr = obj.empresas_nombres && obj.empresas_nombres.length > 0 
             ? obj.empresas_nombres.join(' ').toLowerCase() 
             : 'sin empresas';
-        
-        // Proyectos
         const proyectosStr = obj.proyectos_nombres && obj.proyectos_nombres.length > 0 
             ? obj.proyectos_nombres.join(' ').toLowerCase() 
             : 'sin proyectos asignados';
-            
-        // Estado
         const estadoStr = obj.is_active ? 'activo' : 'inactivo';
-        
-        // Fecha de ingreso
         const fechaStr = obj.date_joined ? obj.date_joined.split('T')[0] : 'sin fecha';
 
         return usuarioStr.includes(termino) || 
@@ -115,8 +173,6 @@ export default function Clientes() {
 
     const abrirModalEditar = (user) => {
         setModalMode('edit');
-        console.log("Usuario recibido del backend:", user);
-        
         const projectIds = user.registros 
             ? Array.from(new Set(user.registros.map(r => {
                 const id = typeof r.proyecto === 'object' ? r.proyecto?.id : r.proyecto;
@@ -157,6 +213,12 @@ export default function Clientes() {
 
     // 4. Funciones CRUD
     const handleGuardar = async () => {
+        const errorFrontend = validarFrontend();
+        if (errorFrontend) {
+            mostrarAlerta("Campos faltantes o inválidos", errorFrontend);
+            return;
+        }
+
         try {
             const url = modalMode === 'create' 
                 ? `${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}/api/users/` 
@@ -171,20 +233,21 @@ export default function Clientes() {
                 username: formData.username,
                 is_active: formData.is_active,
                 proyectos: formData.proyectos,
-                grupos: ['cliente'] // <--- CAMBIO: Asignar al grupo cliente
+                grupos: ['cliente']
             };
 
             if (formData.password) payload.password = formData.password;
 
             const response = await fetch(url, { method, headers, body: JSON.stringify(payload) });
 
+            if (await manejarErrorBackend(response)) return;
+
             if (response.ok) {
                 cerrarModal();
                 fetchData(); 
-            } else {
-                console.error("Error al guardar");
             }
         } catch (error) {
+            mostrarAlerta("Error de red", "No se pudo comunicar con el servidor para guardar el registro.");
             console.error("Error: ", error.message);
         }
     };
@@ -200,24 +263,46 @@ export default function Clientes() {
                 headers
             });
 
+            if (await manejarErrorBackend(response)) return;
+
             if (response.ok) {
                 cerrarModal();
                 fetchData();
-            } else {
-                console.error("Error al eliminar");
             }
         } catch (error) {
+            mostrarAlerta("Error de red", "No se pudo comunicar con el servidor para eliminar el registro.");
             console.error("Error: ", error.message);
         }
     };
 
-    // Si no está autorizado, devolvemos null para evitar parpadeos visuales
     if (!autorizado) {
         return null;
     }
 
     return (
         <>
+            {/* Modal de Alertas / Validaciones */}
+            <dialog 
+                ref={alertaDialogRef} 
+                className={styles.dialog_alerta}
+                style={{ display: alerta.isOpen ? '' : 'none' }}
+            >
+                {alerta.isOpen && (
+                    <div className={styles.alerta_contenido} data-aos="zoom-in">
+                        <div className={styles.alerta_icono}>
+                            <FaExclamationCircle size={50} color="#ef4444" />
+                        </div>
+                        <div className={styles.alerta_textos}>
+                            <h2>{alerta.titulo}</h2>
+                            <p>{alerta.mensaje}</p>
+                        </div>
+                        <button className={styles.alerta_boton} onClick={cerrarAlerta}>
+                            Aceptar
+                        </button>
+                    </div>
+                )}
+            </dialog>
+
             <dialog 
                 ref={dialogRef} 
                 className={styles.dialog} 
@@ -320,8 +405,8 @@ export default function Clientes() {
                 </div>
                 <div className={styles.vista_encabezado}>
                     <div className={styles.encabezado_titulo}>
-                        <h1>Clientes</h1> {/* <--- CAMBIO: Título actualizado */}
-                        <p>Administra clientes registrados.</p> {/* <--- CAMBIO: Subtítulo actualizado */}
+                        <h1>Clientes</h1>
+                        <p>Administra clientes registrados.</p>
                     </div>
                     <div className={styles.encabezado_boton}>
                         <button onClick={abrirModalCrear}>
@@ -362,7 +447,7 @@ export default function Clientes() {
                                         style={{cursor: 'pointer'}}
                                         title="Haz clic para editar"
                                     >
-                                        <td>{obj.username || obj.email || `Cliente ${obj.id}`}</td> {/* <--- CAMBIO: Renderiza 'Cliente' en lugar de 'Consultor' */}
+                                        <td>{obj.username || obj.email || `Cliente ${obj.id}`}</td>
                                         <td>
                                             {obj.empresas_nombres && obj.empresas_nombres.length > 0 
                                                 ? obj.empresas_nombres.join(', ') 
