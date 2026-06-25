@@ -244,8 +244,10 @@ export default function AuxiliaresAdministrativos () {
     let currentLogo = Logo;
     if (selectedProject !== '') {
         const proj = uniqueProjectsMap.get(parseInt(selectedProject));
-        if (proj && proj.empresas && proj.empresas.logo) {
-            currentLogo = `${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}${proj.empresas.logo}`;
+        if (proj?.empresas?.logo) {
+            currentLogo = proj.empresas.logo.startsWith('http')
+                ? proj.empresas.logo
+                : `${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}${proj.empresas.logo}`;
         }
     }
 
@@ -361,7 +363,7 @@ export default function AuxiliaresAdministrativos () {
                             </label>
                         </div>
                         <div className={styles.encabezado_logos}>
-                            <Image src={currentLogo} width={200} height={200} alt='logo de la empresa' unoptimized />
+                            <Image src={typeof currentLogo === 'string' ? currentLogo : currentLogo.src} width={200} height={200} alt='logo de la empresa' unoptimized/>
                             <Image src={Logo} width={120} height={120} alt='logo de la empresa' unoptimized style={{maxHeight: '30px'}}/>
                         </div>
                     </div>

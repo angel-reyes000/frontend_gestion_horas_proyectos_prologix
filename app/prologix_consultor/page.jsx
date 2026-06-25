@@ -455,7 +455,7 @@ export default function PrologixConsultor () {
                                         if (proyectoSeleccionado && proyectoSeleccionado.empresas) {
                                             if (proyectoSeleccionado.empresas.logo) {
                                                 const pathLogo = proyectoSeleccionado.empresas.logo;
-                                                const urlBackend = `${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}${pathLogo.startsWith('/') ? '' : '/'}${pathLogo}`;
+                                                const urlBackend = `${pathLogo}`;
                                                 setLogoEmpresa(urlBackend);
                                             } else {
                                                 setLogoEmpresa(null);

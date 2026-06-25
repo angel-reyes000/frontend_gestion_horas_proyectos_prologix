@@ -251,7 +251,6 @@ export default function PrologixAdmin () {
                 ? proj.empresas.logo
                 : `${process.env.NEXT_PUBLIC_CONNECTION_BACKEND}${proj.empresas.logo}`;
         }
-        console.log("LOGO RAW:", proj.empresas.logo);
     }
 
     return (
@@ -281,7 +280,6 @@ export default function PrologixAdmin () {
                         </div>
                         <div className={styles.encabezado_logos}>
                             <Image src={typeof currentLogo === 'string' ? currentLogo : currentLogo.src} width={200} height={200} alt='logo de la empresa' unoptimized/>
-                            {console.log("LOGO:", currentLogo)}
                             <Image src={Logo} width={50} height={50} alt='logo de la empresa' unoptimized style={{maxHeight: '30px'}} />
                         </div>
                     </div>
