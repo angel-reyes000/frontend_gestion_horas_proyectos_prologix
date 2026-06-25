@@ -278,6 +278,7 @@ export default function PrologixAdmin () {
                         </div>
                         <div className={styles.encabezado_logos}>
                             <img src={currentLogo} width={200} height={200} alt='logo de la empresa' />
+                            {console.log("LOGO:", currentLogo)}
                             <Image src={Logo} width={50} height={50} alt='logo de la empresa' unoptimized style={{maxHeight: '30px'}} />
                         </div>
                     </div>
